@@ -1,27 +1,21 @@
 var cordova = require('cordova');
 var exec = require('cordova/exec');
+ var channel = require('cordova/channel');
 
 function Bit6(){
-
-  this.channels = {
-    messageReceived: cordova.addWindowEventHandler("messageReceived")
-  };
-
-  for (var key in this.channels){
-    this.channels[key].onMessageReceived = Bit6.onHasSubscribersChange;
-  }
+      var me = this;
+      channel.onCordovaReady.subscribe(function() {
+          me.startListening();
+          channel.onCordovaInfoReady.fire();
+      });
 }
 
-function handlers() {
-  return bit6.channels.messageReceived.numHandlers;
+Bit6.prototype.startListening = function(){
+    exec(bit6._notification, bit6._error, "Bit6", "listen", []);
 }
 
-Bit6.onHasSubscribersChange = function(){
-  if (this.numHandlers === 1 && handlers() === 1) {
-        exec(bit6._notification, bit6._error, "Bit6", "listen", []);
-  } else if (handlers() === 0) {
-        exec(null, null, "Bit6", "stopListen", []);
-  }
+Bit6.prototype.stopListening = function(){
+    exec(null, null, "Bit6", "stopListen", []);
 }
 
 Bit6.prototype.register = function(username, password, success, error){
@@ -49,7 +43,7 @@ Bit6.prototype.sendPushMessage = function(message, to, success, error){
 }
 
 Bit6.prototype._notification = function(info){
-   cordova.fireWindowEvent("messageReceived", info);
+    cordova.fireDocumentEvent("messageReceived", info);
 }
 
 Bit6.prototype._error = function(e) {

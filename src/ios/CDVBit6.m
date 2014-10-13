@@ -73,14 +73,21 @@
 - (void) conversationsUpdatedNotification:(NSNotification*)notification
 {
    //get updated conversations
-   NSArray *messages = [Bit6 messagesWithOffset:0 length:NSIntegerMax asc:YES];
+   NSArray *messages = [Bit6 messagesWithOffset:0 length:1 asc:NO];
 
-   if (self.callbackId) {
-        CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:messages];
-        [result setKeepCallbackAsBool:YES];
-        [self.commandDelegate sendPluginResult:result callbackId:self.callbackId];
+    if ([messages count]){
+        Bit6Message *message = [messages objectAtIndex:0];
+
+        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:message.content, @"content"    , @(message.incoming), @"incoming", nil];
+
+        NSDictionary *data = [NSDictionary dictionaryWithObject:dictionary forKey:@"data"];
+
+        if (self.callbackId) {
+            CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:data];
+            [result setKeepCallbackAsBool:YES];
+            [self.commandDelegate sendPluginResult:result callbackId:self.callbackId];
+        }
     }
-
 }
 
 - (void)stopListen:(CDVInvokedUrlCommand*)command
