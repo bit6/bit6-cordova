@@ -1,4 +1,5 @@
 #import "AppDelegate+bit6.h"
+#import <Bit6SDK/Bit6SDK.h>
 #import <objc/runtime.h>
 
 @implementation AppDelegate (bit6)

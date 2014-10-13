@@ -7,7 +7,6 @@
 //
 
 #import "AppDelegate.h"
-#import <Bit6SDK/Bit6SDK.h>
 
 @interface AppDelegate (bit6)
 

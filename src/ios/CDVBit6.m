@@ -13,7 +13,7 @@
     Bit6Address *identity = [[Bit6Address alloc] initWithKind:Bit6AddressKind_USERNAME value:username];
 
     [Bit6Session signUpWithUserIdentity:identity password:password completionHandler:^(NSDictionary *response, NSError *error) {
-         [self processCompletionHandler:response error:error];
+         [self processCommandWithResult:command response:response error:error];
     }];
 }
 
@@ -25,23 +25,23 @@
     Bit6Address *identity = [[Bit6Address alloc] initWithKind:Bit6AddressKind_USERNAME value:username];
 
     [Bit6Session loginWithUserIdentity:identity password:password completionHandler:^(NSDictionary *response, NSError *error) {
-        [self processCompletionHandler:response error:error];
+        [self processCommandWithResult:command response:response error:error];
     }];
 }
 
 - (void)logout:(CDVInvokedUrlCommand*)command
 {
     [Bit6Session logoutWithCompletionHandler:^(NSDictionary *response, NSError *error) {
-        [self processCompletionHandler:response error:error];
+        [self processCommandWithResult:command response:response error:error];
     }];
 }
 
 - (void)isConnected:(CDVInvokedUrlCommand*)command
 {
     if ([Bit6Session isConnected])
-        [self processCompletionHandler:[NSDictionary dictionaryWithObjectsAndKeys:@(YES), @"connected", nil] error:nil];
+        [self processCommandWithResult:command response:[NSDictionary dictionaryWithObjectsAndKeys:@(YES), @"connected", nil] error:nil];
     else
-        [self processCompletionHandler:[NSDictionary dictionaryWithObjectsAndKeys:@(NO), @"connected", nil] error:nil];
+        [self processCommandWithResult:command response:[NSDictionary dictionaryWithObjectsAndKeys:@(NO), @"connected", nil] error:nil];
 }
 
 - (void)sendMessage:(CDVInvokedUrlCommand*)command
@@ -59,7 +59,7 @@
     bit6Message.channel = channel;
 
     [bit6Message sendWithCompletionHandler:^(NSDictionary *response, NSError *error) {
-        [self processCompletionHandler:response error:error];
+        [self processCommandWithResult:command response:response error:error];
     }];
 }
 
@@ -90,14 +90,18 @@
 }
 
 
-- (void)processCompletionHandler:(NSDictionary*)response error:(NSError*)error
+- (void)processCommandWithResult:(CDVInvokedUrlCommand*)command response:(NSDictionary*)response error:(NSError*)error
 {
     CDVPluginResult* pluginResult = nil;
 
     if (!error)
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:response];
     else
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:error.userInfo];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    });
 }
 
 

@@ -29,10 +29,10 @@ xmlns:android="http://schemas.android.com/apk/res/android">
 
     <framework src="lib/ios/Bit6SDK.framework" custom="true"/>
 
-    <header-file src="lib/ios/Bit6SDK.framework/Headers/Bit6.h" compiler-flags="-ObjC"/>
+    <header-file src="lib/ios/Bit6SDK.framework/Headers/Bit6SDK.h"/>
 
 		<header-file src="src/ios/AppDelegate+bit6.h" />
-		<source-file src="src/ios/AppDelegate+bit6.m" />
+		<source-file src="src/ios/AppDelegate+bit6.m" compiler-flags="-ObjC" />
 
     <header-file src="src/ios/CDVBit6.h" />
 		<source-file src="src/ios/CDVBit6.m" />
