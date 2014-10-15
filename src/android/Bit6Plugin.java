@@ -1,4 +1,4 @@
-package com.telerik.bit6;
+package com.bit6.sdk;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
