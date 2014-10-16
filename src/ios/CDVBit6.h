@@ -9,7 +9,7 @@
 - (void)isConnected:(CDVInvokedUrlCommand*)command;
 - (void)sendMessage:(CDVInvokedUrlCommand*)command;
 
-- (void)listen:(CDVInvokedUrlCommand*)command;
+- (void)startListening:(CDVInvokedUrlCommand*)command;
 - (void)stopListen:(CDVInvokedUrlCommand*)command;
 
 @property (strong) NSString* callbackId;

@@ -63,7 +63,7 @@
     }];
 }
 
-- (void)listen:(CDVInvokedUrlCommand*)command
+- (void)startListening:(CDVInvokedUrlCommand*)command
 {
     self.callbackId = command.callbackId;
 
@@ -73,14 +73,25 @@
 - (void) conversationsUpdatedNotification:(NSNotification*)notification
 {
    //get updated conversations
-   NSArray *messages = [Bit6 messagesWithOffset:0 length:1 asc:NO];
+   NSArray *messages = [Bit6 messagesWithOffset:0 length:NSIntegerMax asc:NO];
 
     if ([messages count]){
-        Bit6Message *message = [messages objectAtIndex:0];
 
-        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:message.content, @"content"    , @(message.incoming), @"incoming", nil];
+        NSMutableArray *mutableArray = [[NSMutableArray alloc] initWithCapacity:[messages count]];
 
-        NSDictionary *data = [NSDictionary dictionaryWithObject:dictionary forKey:@"data"];
+        for (Bit6Message * message in messages){
+
+            NSMutableDictionary *mutableDictionary = [[NSMutableDictionary alloc] init];
+
+            [mutableDictionary setObject:message.content forKey:@"content"];
+            [mutableDictionary setObject:@(message.incoming) forKey:@"incoming"];
+            [mutableDictionary setObject:[[NSDictionary alloc] initWithObjectsAndKeys:message.other.displayName, @"displayName", nil]  forKey:@"other"];
+            [mutableDictionary setObject:[[NSDictionary alloc] initWithObjectsAndKeys:message.data.lat, @"lat", message.data.lng, @"lng", nil]  forKey:@"data"];
+
+            [mutableArray addObject:mutableDictionary];
+        }
+
+        NSDictionary *data = [NSDictionary dictionaryWithObject:mutableArray forKey:@"messages"];
 
         if (self.callbackId) {
             CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:data];
@@ -98,13 +109,13 @@
 
 
 - (void)processCommandWithResult:(CDVInvokedUrlCommand*)command response:(NSDictionary*)response error:(NSError*)error
+
 {
     CDVPluginResult* pluginResult = nil;
-
     if (!error)
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:response];
     else
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:error.userInfo];
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:response];
 
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];

@@ -11,7 +11,7 @@ function Bit6(){
 }
 
 Bit6.prototype.startListening = function(){
-    exec(bit6._notification, bit6._error, "Bit6", "listen", []);
+    exec(bit6._notification, bit6._error, "Bit6", "startListening", []);
 }
 
 Bit6.prototype.stopListening = function(){
