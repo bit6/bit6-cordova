@@ -1,0 +1,35 @@
+{
+  "name": "bit6",
+  "version": "0.6.0",
+  "homepage": "http://bit6.github.io/bit6-js-sdk",
+  "authors": [
+    "Bit6 <dev@bit6.com>"
+  ],
+  "description": "Add rich messaging and voice/video calling to web and mobile apps.",
+  "main": "./bit6.min.js",
+  "keywords": [
+    "communication",
+    "messaging",
+    "voice",
+    "video",
+    "webrtc"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "_release": "0.6.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "0.6.0",
+    "commit": "416066ea604cd69134f1129a3093c4fb02a08f66"
+  },
+  "_source": "git://github.com/bit6/bit6-js-sdk.git",
+  "_target": "~0.6.0",
+  "_originalSource": "bit6",
+  "_direct": true
+}

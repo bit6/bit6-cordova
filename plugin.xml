@@ -4,56 +4,10 @@ version="1.0.1" xmlns="http://apache.org/cordova/ns/plugins/1.0"
 xmlns:android="http://schemas.android.com/apk/res/android">
 
   <name>Bit6</name>
+  <description>Bit6 Cordova SDK </description>
 
-  <preference name="API_KEY" />
-
-  <engines>
-    <engine name="cordova" version=">=3.0.0"/>
-  </engines>
-
-  <js-module name="Bit6" src="www/Bit6.js">
-    <clobbers target="bit6"/>
+  <js-module name="b6" src="www/bit6/bit6.min.js">
+    <clobbers target="b6" />
   </js-module>
-
-  <platform name="ios">
-    <config-file parent="/*" target="config.xml">
-      <feature name="Bit6">
-        <param name="ios-package" value="CDVBit6"/>
-      </feature>
-    </config-file>
-
-    <framework src="libicucore.dylib"/>
-    <framework src="libz.dylib"/>
-
-    <framework src="GLKit.framework"/>
-
-    <framework src="lib/ios/Bit6SDK.framework" custom="true"/>
-
-    <header-file src="lib/ios/Bit6SDK.framework/Headers/Bit6SDK.h"/>
-
-		<header-file src="src/ios/AppDelegate+bit6.h" />
-		<source-file src="src/ios/AppDelegate+bit6.m" compiler-flags="-ObjC" />
-
-    <header-file src="src/ios/CDVBit6.h" />
-		<source-file src="src/ios/CDVBit6.m" />
-
-    <config-file target="*-Info.plist" parent="API_KEY">
-        <string>$API_KEY</string>
-    </config-file>
-
-  </platform>
-
-  <platform name="android">
-    <config-file parent="/*" target="res/xml/config.xml">
-      <feature name="Bit6"><param name="android-package" value="com.bit6.sdk.Bit6Plugin" />
-      </feature>
-    </config-file>
-
-    <config-file parent="/*" target="AndroidManifest.xml">
-    </config-file>
-
-    <source-file src="src/android/Bit6Plugin.java" target-dir="src/com/telerik/bit6/Bit6Plugin"/>
-
-  </platform>
 
 </plugin>
