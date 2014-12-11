@@ -5,6 +5,7 @@ Bit6 is a real-time, cloud-based communications-as-a-service platform that allow
 Although the object is in the global scope, it is not available until after the `deviceready` event.
 
     document.addEventListener("deviceready", onDeviceReady, false);
+
     function onDeviceReady() {
         console.log(window.b6);
     }
@@ -14,53 +15,52 @@ Although the object is in the global scope, it is not available until after the 
 
 You need a Bit6 API key for using this plugin, which you can obtain from [Bit6 Portal](http://bit6.github.io/). Once you have your API key, you can install the plugin in the following way:
 
-    cordova plugin add url
+    cordova plugin add ##PLUGIN_REPO_URL##
 
 
 ## Initialize the SDK
 
 The API key you have obtained from the website set it to the bit6 object in the following way:
 
-		var b6 = new bit6.Client({
-			apikey: 'MyApiKey'
-		});
+	var b6 = new bit6.Client({
+		apikey: 'MyApiKey'
+	});
 
 
 ## Create user account
 
 Create a new user account with a username identity.
 
-
-		// Convert username to an identity URI
-		var ident = 'usr:' + 'john';
-		b6.signup({identity: ident, password: 'secret'}, function(err) {
-		  if (err) {
-		    console.log('signup error', err);
-		  }
-		  else {
-		    console.log('signup successful');
-		  }
-		});
+	// Convert username to an identity URI
+	var ident = 'usr:' + 'john';
+	b6.signup({identity: ident, password: 'secret'}, function(err) {
+	  if (err) {
+	    console.log('signup error', err);
+	  }
+	  else {
+	    console.log('signup successful');
+	  }
+	});
 
 ## Login
 
 Login into an existing account using an Identity and a password.
 
 
-		// Convert username to an identity URI
-		var ident = 'usr:' + 'john';
-		b6.login({identity: ident, password: 'secret'}, function(err) {
-		  if (err) {
-		    console.log('login error', err);
-		  }
-		  else {
-		    console.log('login successful');
-		  }
-		});
+	// Convert username to an identity URI
+	var ident = 'usr:' + 'john';
+	b6.login({identity: ident, password: 'secret'}, function(err) {
+	  if (err) {
+	    console.log('login error', err);
+	  }
+	  else {
+	    console.log('login successful');
+	  }
+	});
 
 ## Logout
 		
-		b6.logout();
+	b6.logout();
 
 
 ## Events
