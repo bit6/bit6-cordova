@@ -20,7 +20,7 @@ exports.init = function(opts) {
         });
     }
     return b6;
-}
+};
 
 
 function initPushService(b6) {
@@ -54,15 +54,10 @@ function initPushService(b6) {
     // Helper functions for success / error responses
     var errh = function(r) {
         alert('Push Error: ' + r);
-    }
+    };
     var okh = function(r) {
         console.log('Push Success: ' + r);
-    }
-
-    // Push plugin
-    // TODO: Check that it is present.
-    var pushPlugin = window.plugins.pushNotification;
-    console.log('PushPlugin', pushPlugin);
+    };
 
     // Helper function for submitting the push key to the server
     var sendPushkeyToServer = function(pushkey) {
@@ -87,7 +82,7 @@ function initPushService(b6) {
         switch(e.event) {
             // Registered with GCM
             case 'registered':
-            if (e.regid && e.regid.length > 0) {
+                if (e.regid && e.regid.length > 0) {
                     // Notify the server about this GCM regId
                     sendPushkeyToServer(e.regid);
                 }
@@ -111,14 +106,14 @@ function initPushService(b6) {
                 break;
             // Got GCM error
             case 'error':
-            console.log('GCM err: ' + e.msg)
-            break;
+                console.log('GCM err: ' + e.msg)
+                break;
             // Unknown GCM event
             default:
-            console.log('GCM unknown event: ' + e.event)
-            break;
+                console.log('GCM unknown event: ' + e.event)
+                break;
         }
-    }
+    };
 
     // Got notification from APN
     // Note that the function has to be in global scope!
@@ -131,11 +126,11 @@ function initPushService(b6) {
             // TODO: Play sound
         }
         if (e.badge) {
-            pushPlugin.setApplicationIconBadgeNumber(okh, e.badge);
+            window.plugins.pushNotification.setApplicationIconBadgeNumber(okh, e.badge);
         }
         // Feed it into JS SDK
         b6._handlePushRtMessage(e);
-    }
+    };
 
 
     // Listen to the completion of the auth procedure.
@@ -151,7 +146,7 @@ function initPushService(b6) {
                 ecb: 'onPushGCM'
             };
             console.log('Register GCM', opts);
-            pushPlugin.register(okh, errh, opts);
+            window.plugins.pushNotification.register(okh, errh, opts);
         }
         // On iOS we just specify the type of pushes we want to receive
         else if (plat == 'ios') {
@@ -162,7 +157,7 @@ function initPushService(b6) {
                 ecb: 'onPushAPN'
             };
             console.log('Register APN', opts);
-            pushPlugin.register(sendPushkeyToServer, errh, opts);
+            window.plugins.pushNotification.register(sendPushkeyToServer, errh, opts);
         }
     });
 }
