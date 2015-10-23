@@ -36,7 +36,7 @@ b6.session.signup({identity: 'usr:john', password: 'secret'}, function(err) {
 ```
 Send a message to another user:
 ```js
-b6.sendMessage({other: 'usr:tom', content: 'Hello!'}, function(err) {
+b6.compose('usr:tom').text('Hello!').send(function(err) {
   if (err) {
     console.log('error', err);
   } else {

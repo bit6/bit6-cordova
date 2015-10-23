@@ -45,6 +45,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private WebView.LayoutParams _videoParams;
 	private boolean _shouldDispose = true;
 	private boolean _initializedAndroidGlobals = false;
+
+    private WebView _webView;
 	
 	public PhoneRTCPlugin() {
 		_remoteVideos = new ArrayList<VideoTrackRendererPair>();
@@ -260,9 +262,39 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	public Activity getActivity() {
 		return cordova.getActivity();
 	}
-	
+
+	//Returning used WebView instance depending on cordova-android version (webView type).
+	//Making the code compatible with all cordova-android versions.
 	public WebView getWebView() {
-		return this.getWebView();
+	    if (_webView != null)
+	        return _webView;
+
+	    if (webView == null) { //should not happen
+	        Log.e("PRTC", "Error: webView is not initialized yet in CordovaPlugin");
+	        return null;
+	    }
+
+	    if (webView instanceof WebView ) {
+	        _webView = (WebView) webView;
+	    }
+	    else { //(>=4.0.0), using getView method
+	        java.lang.reflect.Method method = null;
+
+	        try {
+	            method = webView.getClass().getMethod("getView");
+
+	        } catch (Exception e) {
+	            Log.e("PRTC", "Failed to get method 'getView' from CordovaWebView class: " + e.getMessage());
+	        }
+
+	        try {
+	            _webView = (WebView) (method.invoke(webView));
+
+	        } catch (Exception e) {
+	            Log.e("PRTC", "getView method invocation failed: " + e.getMessage());
+	        }
+	    }
+	    return _webView;
 	}
 	
 	public VideoConfig getVideoConfig() {
@@ -332,7 +364,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		_videoView = new VideoGLView(cordova.getActivity(), size);
 		VideoRendererGui.setView(_videoView);
 	
-		webView.addView(_videoView, _videoParams);
+		getWebView().addView(_videoView, _videoParams);
 	}
 	
 	private void refreshVideoView() {
@@ -352,7 +384,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 		}
 		
 		if (_videoView != null) {
-			webView.removeView(_videoView);
+			getWebView().removeView(_videoView);
 			_videoView = null;
 		}
 
@@ -473,7 +505,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 			
 					if (_videoView != null) {
 						_videoView.setVisibility(View.GONE);
-						webView.removeView(_videoView);
+						getWebView().removeView(_videoView);
 					}
 
 					if (_videoSource != null) {
@@ -497,6 +529,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
                         
                         _audioTrack = null;
                     }
+ 
+                    _videoConfig = null;
                     
 					// if (_peerConnectionFactory != null) {
 					// 	_peerConnectionFactory.dispose();

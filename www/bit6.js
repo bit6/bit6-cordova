@@ -1,7 +1,7 @@
-// bit6 - v0.9.1
+// bit6 - v0.9.6
 
 (function() {
-  var __slice = [].slice;
+  var slice = [].slice;
 
   window.bit6 || (window.bit6 = {});
 
@@ -11,23 +11,23 @@
     }
 
     EventEmitter.prototype.emit = function() {
-      var args, event, listener, _i, _len, _ref;
-      event = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      var args, event, i, len, listener, ref;
+      event = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
       if (!this.events[event]) {
         return false;
       }
-      _ref = this.events[event];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        listener = _ref[_i];
+      ref = this.events[event];
+      for (i = 0, len = ref.length; i < len; i++) {
+        listener = ref[i];
         listener.apply(null, args);
       }
       return true;
     };
 
     EventEmitter.prototype.addListener = function(event, listener) {
-      var _base;
+      var base;
       this.emit('newListener', event, listener);
-      ((_base = this.events)[event] != null ? _base[event] : _base[event] = []).push(listener);
+      ((base = this.events)[event] != null ? base[event] : base[event] = []).push(listener);
       return this;
     };
 
@@ -51,16 +51,16 @@
         return this;
       }
       this.events[event] = (function() {
-        var _i, _len, _ref, _results;
-        _ref = this.events[event];
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          l = _ref[_i];
+        var i, len, ref, results;
+        ref = this.events[event];
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          l = ref[i];
           if (l !== listener) {
-            _results.push(l);
+            results.push(l);
           }
         }
-        return _results;
+        return results;
       }).call(this);
       return this;
     };
@@ -79,8 +79,6 @@
 }).call(this);
 
 (function() {
-  window.bit6 || (window.bit6 = {});
-
   bit6.Conversation = (function() {
     function Conversation(id) {
       this.id = id;
@@ -121,15 +119,15 @@
     };
 
     Conversation.prototype.removeMessage = function(m) {
-      var i, idx, n, o, removed, _i, _len, _ref;
+      var i, idx, j, len, n, o, ref, removed;
       n = this.messages.length;
       if (n > 0 && this.messages[n - 1].id === m.id) {
         this.modified = true;
       }
       idx = -1;
-      _ref = this.messages;
-      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-        o = _ref[i];
+      ref = this.messages;
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        o = ref[i];
         if (o.id === m.id) {
           idx = i;
           break;
@@ -143,13 +141,12 @@
     };
 
     Conversation.prototype._updateUnreadCount = function() {
-      var f, m, num, _i, _len, _ref;
+      var j, len, m, num, ref;
       num = 0;
-      _ref = this.messages;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        m = _ref[_i];
-        f = m.flags;
-        if ((f & 0x1000) && (f & 0x000f) < 5) {
+      ref = this.messages;
+      for (j = 0, len = ref.length; j < len; j++) {
+        m = ref[j];
+        if (m.canMarkRead()) {
           num++;
         }
       }
@@ -179,13 +176,11 @@
 }).call(this);
 
 (function() {
-  var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
 
-  window.bit6 || (window.bit6 = {});
-
-  bit6.Dialog = (function(_super) {
-    __extends(Dialog, _super);
+  bit6.Dialog = (function(superClass) {
+    extend(Dialog, superClass);
 
     function Dialog(client, outgoing, other, options) {
       var myaddr;
@@ -217,7 +212,7 @@
     }
 
     Dialog.prototype.connect = function(opts) {
-      var k, _i, _len, _ref, _ref1;
+      var i, k, len, ref, ref1;
       if (opts == null) {
         opts = {};
       }
@@ -231,10 +226,10 @@
           return this.hangup();
         }
       }
-      _ref = ['containerEl', 'localMediaEl', 'remoteMediaEl'];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        k = _ref[_i];
-        this.options[k] = (_ref1 = opts[k]) != null ? _ref1 : null;
+      ref = ['containerEl', 'localMediaEl', 'remoteMediaEl'];
+      for (i = 0, len = ref.length; i < len; i++) {
+        k = ref[i];
+        this.options[k] = (ref1 = opts[k]) != null ? ref1 : null;
       }
       console.log('Dialog - calling ensure media', this);
       this.client._ensureRtcMedia(this.options, 1, (function(_this) {
@@ -244,7 +239,10 @@
             _this.emit('error', 'Unable to start media');
             return _this.hangup();
           }
-          return _this._onMediaReady();
+          _this._onMediaReady();
+          if (_this.options.video) {
+            return _this.emit('videos');
+          }
         };
       })(this));
       return true;
@@ -264,6 +262,11 @@
               return _this.emit('answer');
             }
           });
+        };
+      })(this));
+      this.rtc.on('videos', (function(_this) {
+        return function() {
+          return _this.emit('videos');
         };
       })(this));
       this.rtc.on('dcOpen', (function(_this) {
@@ -287,26 +290,35 @@
     };
 
     Dialog.prototype._startNextPendingTransfer = function() {
-      var t, _i, _len, _ref, _results;
-      _ref = this.transfers;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        t = _ref[_i];
+      var i, len, ref, results, t;
+      ref = this.transfers;
+      results = [];
+      for (i = 0, len = ref.length; i < len; i++) {
+        t = ref[i];
         if (t.pending()) {
           this.rtc.startOutgoingTransfer(t);
           break;
         } else {
-          _results.push(void 0);
+          results.push(void 0);
         }
       }
-      return _results;
+      return results;
     };
 
     Dialog.prototype.sendFile = function(info, data) {
       var tr;
-      tr = new bit6.Transfer(info, true, data);
+      tr = new bit6.Transfer(true, info, data);
       this.transfers.push(tr);
-      return this.rtc.startOutgoingTransfer(tr);
+      return tr._ensureSourceData((function(_this) {
+        return function() {
+          if (tr.err != null) {
+            _this.emit('transfer', tr);
+          }
+          if (tr.data != null) {
+            return _this.rtc.startOutgoingTransfer(tr);
+          }
+        };
+      })(this));
     };
 
     Dialog.prototype.hangup = function() {
@@ -315,6 +327,9 @@
         this.rtc = null;
         this.client._ensureRtcMedia(null, -1);
         this._sendHangupCall();
+        if (this.options.video) {
+          this.emit('videos');
+        }
       } else if (!this.outgoing) {
         this._sendAcceptRejectIncomingCall(false);
       }
@@ -322,17 +337,17 @@
     };
 
     Dialog.prototype._sendOfferAnswer = function(offerAnswer, cb) {
-      var msg;
+      var msg, ref, ref1;
       msg = offerAnswer;
       if (msg.type === 'offer') {
         this.state = 'sent-offer';
         msg.dialogParams = this.params;
-        return this.client.rpc.call('verto.invite', msg, cb);
+        return (ref = this.client.rpc) != null ? ref.call('verto.invite', msg, cb) : void 0;
       } else if (msg.type === 'answer') {
         this.state = 'sent-answer';
         this.params.wantVideo = this.options.video;
         msg.dialogParams = this.params;
-        return this.client.rpc.call('verto.answer', msg, cb);
+        return (ref1 = this.client.rpc) != null ? ref1.call('verto.answer', msg, cb) : void 0;
       }
     };
 
@@ -343,14 +358,14 @@
     };
 
     Dialog.prototype._sendHangupCall = function() {
-      var msg;
+      var msg, ref;
       this.state = 'sent-bye';
       msg = {
         dialogParams: this.params
       };
-      return this.client.rpc.call('verto.bye', msg, (function(_this) {
+      return (ref = this.client.rpc) != null ? ref.call('verto.bye', msg, (function(_this) {
         return function(err, result) {};
-      })(this));
+      })(this)) : void 0;
     };
 
     Dialog.prototype.handleRpcCall = function(method, params) {
@@ -384,6 +399,9 @@
         this.rtc.stop();
         this.rtc = null;
         this.client._ensureRtcMedia(null, -1);
+        if (this.options.video) {
+          this.emit('videos');
+        }
         return this.emit('end');
       }
     };
@@ -395,16 +413,64 @@
 }).call(this);
 
 (function() {
-  window.bit6 || (window.bit6 = {});
+  bit6.Group = (function() {
+    function Group(id) {
+      this.id = id;
+      this.meta = null;
+      this.permissions = null;
+      this.members = [];
+      this.updated = 0;
+    }
 
+    Group.prototype.update = function(o) {
+      var k, v;
+      if (o.updated == null) {
+        return false;
+      }
+      if (this.updated === o.updated) {
+        if (JSON.stringify(this.meta) === JSON.stringify(o != null ? o.meta : void 0)) {
+          if (JSON.stringify(this.permissions) === JSON.stringify(o != null ? o.permissions : void 0)) {
+            if (JSON.stringify(this.members) === JSON.stringify(o != null ? o.members : void 0)) {
+              return false;
+            }
+          }
+        }
+      }
+      for (k in o) {
+        v = o[k];
+        this[k] = v;
+      }
+      return true;
+    };
+
+    Group.prototype._updateMemberProfile = function(ident, profile) {
+      var i, len, m, ref;
+      ref = this.members;
+      for (i = 0, len = ref.length; i < len; i++) {
+        m = ref[i];
+        if (m.id === ident) {
+          m.profile = profile;
+          return true;
+        }
+      }
+      return false;
+    };
+
+    return Group;
+
+  })();
+
+}).call(this);
+
+(function() {
   bit6.JsonRpc = (function() {
     JsonRpc.prototype.reconnectDelay = 2000;
 
     function JsonRpc(options) {
-      var _base;
+      var base;
       this.options = options;
-      if ((_base = this.options).sessid == null) {
-        _base.sessid = bit6.JsonRpc.generateGUID();
+      if ((base = this.options).sessid == null) {
+        base.sessid = bit6.JsonRpc.generateGUID();
       }
       this.currentId = 1;
       this.callbacks = {};
@@ -420,18 +486,24 @@
       this.ws = new WebSocket(this.options.wsUrl);
       this.ws.onopen = (function(_this) {
         return function() {
-          var m, _i, _len, _ref;
-          _ref = _this.queue;
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            m = _ref[_i];
-            _this.ws.send(m);
+          var i, len, m, ref;
+          if (_this.queue.length > 0) {
+            ref = _this.queue;
+            for (i = 0, len = ref.length; i < len; i++) {
+              m = ref[i];
+              _this.ws.send(m);
+            }
+            return _this.queue = [];
+          } else {
+            return _this.call('login', {}, function(err, result) {
+              return console.log('rpc login err=', err, 'result=', result);
+            });
           }
-          return _this.queue = [];
         };
       })(this);
       this.ws.onmessage = (function(_this) {
         return function(e) {
-          var cb, ex, m;
+          var cb, error, ex, m;
           try {
             m = JSON.parse(e.data);
             if ((m.result != null) || (m.error != null)) {
@@ -461,8 +533,8 @@
                 return _this.options.onRpcCall(m.method, m.params);
               }
             }
-          } catch (_error) {
-            ex = _error;
+          } catch (error) {
+            ex = error;
             console.log('Exception parsing JSON response ', ex);
             return console.log('  -- RAW {{{', e.data, '}}}');
           }
@@ -474,6 +546,7 @@
             return;
           }
           _this.ws = null;
+          _this.queue = [];
           return setTimeout(function() {
             return _this.connect();
           }, _this.reconnectDelay);
@@ -546,16 +619,16 @@
 }).call(this);
 
 (function() {
-  var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __slice = [].slice;
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty,
+    slice = [].slice;
 
-  window.bit6 || (window.bit6 = {});
-
-  bit6.Client = (function(_super) {
+  bit6.Client = (function(superClass) {
     var endpoints;
 
-    __extends(Client, _super);
+    extend(Client, superClass);
+
+    Client.version = '0.9.6';
 
     endpoints = {
       prod: 'https://api.bit6.com',
@@ -563,35 +636,48 @@
       local: 'http://127.0.0.1:3000'
     };
 
-    function Client(options) {
-      var _ref;
-      this.options = options;
+    function Client(opts) {
+      var hasWebRTC, ref;
       Client.__super__.constructor.apply(this, arguments);
-      if (this.options.apikey == null) {
+      if ((opts != null ? opts.apikey : void 0) == null) {
         throw 'Missing required "apikey" option';
       }
-      this.apikey = this.options.apikey;
-      this.env = (_ref = this.options.env) != null ? _ref : 'prod';
+      this.apikey = opts.apikey;
+      this.env = (ref = opts.env) != null ? ref : 'prod';
+      hasWebRTC = (window.RTCPeerConnection != null) || (window.mozRTCPeerConnection != null) || (window.webkitRTCPeerConnection != null);
+      this.caps = {
+        audio: hasWebRTC,
+        video: hasWebRTC,
+        websocket: typeof WebSocket !== "undefined" && WebSocket !== null,
+        attachment: (typeof Blob !== "undefined" && Blob !== null) && (typeof FormData !== "undefined" && FormData !== null) && (typeof FileReader !== "undefined" && FileReader !== null)
+      };
       this._clear();
       this.session = new bit6.Session(this);
     }
 
     Client.prototype._clear = function() {
-      this.me = {};
       this.lastSince = 0;
+      this.me = {};
       this.messages = {};
       this.conversations = {};
+      this.groups = {};
+      this.presence = {};
+      this.lastTypingSent = 0;
       this.media = null;
-      this.dialogs = [];
-      this.customCreateDeviceId = null;
-      this.customCreateRtc = null;
-      return this.customCreateRtcMedia = null;
+      return this.dialogs = [];
     };
 
     Client.prototype._onLogin = function(cb) {
       this._connectRt();
       return this._loadMe((function(_this) {
         return function(err) {
+          var g, id, ref;
+          ref = _this.groups;
+          for (id in ref) {
+            g = ref[id];
+            g.updated = 0;
+            _this._loadGroupWithMembers(id);
+          }
           return cb(null);
         };
       })(this));
@@ -608,23 +694,26 @@
     Client.prototype._loadMe = function(cb) {
       var data;
       data = {
-        'embed': 'messages,identities,devices,groups',
-        'since': this.lastSince
+        embed: 'devices,identities,groups,messages',
+        since: this.lastSince
       };
       return this.api('/me', data, (function(_this) {
         return function(err, result, headers) {
-          var k, _i, _len, _ref, _ref1;
+          var i, k, len, ref, ref1;
           if (err) {
             return cb(err);
           }
           console.log('LoadMe got', result, headers);
-          _this.lastSince = (_ref = headers != null ? headers.etag : void 0) != null ? _ref : 0;
-          _ref1 = ['devices', 'groups', 'identities'];
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            k = _ref1[_i];
+          _this.lastSince = (ref = headers != null ? headers.etag : void 0) != null ? ref : 0;
+          ref1 = ['devices', 'identities', 'data', 'profile'];
+          for (i = 0, len = ref1.length; i < len; i++) {
+            k = ref1[i];
             if (result[k] != null) {
               _this.me[k] = result[k];
             }
+          }
+          if (result.groups != null) {
+            _this._processGroupInfos(result.groups);
           }
           _this._processMessages(result.messages);
           return cb();
@@ -632,14 +721,41 @@
       })(this));
     };
 
+    Client.prototype.setPrivateData = function(o, cb) {
+      return this._setDataOrProfile('data', o, cb);
+    };
+
+    Client.prototype.setPublicProfile = function(o, cb) {
+      return this._setDataOrProfile('profile', o, cb);
+    };
+
+    Client.prototype._setDataOrProfile = function(name, o, cb) {
+      var old, ref;
+      old = (ref = this.me[name]) != null ? ref : null;
+      this.me[name] = o;
+      return this.api('/me/' + name, 'POST', o, (function(_this) {
+        return function(err, x) {
+          if (err) {
+            delete _this.me[name];
+            if (old) {
+              _this.me[name] = old;
+            }
+          } else {
+            _this.me[name] = x;
+          }
+          return typeof cb === "function" ? cb(err, x) : void 0;
+        };
+      })(this));
+    };
+
     Client.prototype.getConversation = function(uri) {
-      var _ref;
-      return (_ref = this.conversations[uri]) != null ? _ref : null;
+      var ref;
+      return (ref = this.conversations[uri]) != null ? ref : null;
     };
 
     Client.prototype.getConversationByUri = function(uri) {
-      var _ref;
-      return (_ref = this.conversations[uri]) != null ? _ref : null;
+      var ref;
+      return (ref = this.conversations[uri]) != null ? ref : null;
     };
 
     Client.prototype.getSortedConversations = function() {
@@ -653,9 +769,9 @@
     };
 
     Client.prototype.addEmptyConversation = function(uri) {
-      var conv, convId, _ref;
+      var conv, convId, ref;
       convId = uri;
-      conv = (_ref = this.conversations[convId]) != null ? _ref : null;
+      conv = (ref = this.conversations[convId]) != null ? ref : null;
       if (!conv) {
         conv = new bit6.Conversation(convId);
         this.conversations[convId] = conv;
@@ -671,13 +787,13 @@
       other = encodeURIComponent(conv.id);
       return this.api('/me/messages?other=' + other, 'DELETE', (function(_this) {
         return function(err, result) {
-          var m, msgs, _i, _len;
+          var i, len, m, msgs;
           if (err) {
             return typeof cb === "function" ? cb(err) : void 0;
           }
           msgs = conv.messages.slice();
-          for (_i = 0, _len = msgs.length; _i < _len; _i++) {
-            m = msgs[_i];
+          for (i = 0, len = msgs.length; i < len; i++) {
+            m = msgs[i];
             m.deleted = Date.now();
             _this._processMessage(m, true);
           }
@@ -690,80 +806,84 @@
     };
 
     Client.prototype.markConversationAsRead = function(conv) {
-      var m, num, other, _i, _len, _ref;
+      var i, len, m, num, other, ref;
       num = 0;
-      _ref = conv.messages;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        m = _ref[_i];
-        if (m.incoming() && m.status() < bit6.Message.READ) {
-          m.status(bit6.Message.READ);
-          console.log('Msg to be marked: ', m);
-          this._processMessage(m);
-          num++;
+      if (!(conv != null ? conv.messages : void 0)) {
+        return num;
+      }
+      ref = conv.messages;
+      for (i = 0, len = ref.length; i < len; i++) {
+        m = ref[i];
+        if (!m.canMarkRead()) {
+          continue;
         }
+        m.status(bit6.Message.READ);
+        console.log('Msg to be marked: ', m);
+        this._processMessage(m);
+        num++;
       }
-      if (num > 0) {
-        other = encodeURIComponent(conv.uri);
-        this.api('/me/messages?other=' + other, 'PUT', {
-          status: 'read'
-        }, function(err, result) {
-          return console.log('markAsRead result=', result);
-        });
+      if (num === 0) {
+        return;
       }
+      other = encodeURIComponent(conv.uri);
+      this.api('/me/messages?other=' + other, 'PUT', {
+        status: 'read'
+      }, function(err, result) {
+        return console.log('markAsRead result=', result);
+      });
       return num;
     };
 
-    Client.prototype.sendMessage = function(m, cb) {
-      var k, mx, now, tmpId, v;
-      tmpId = bit6.JsonRpc.generateGUID();
-      now = Date.now();
-      if (m.me == null) {
-        m.me = this.session.identity;
+    Client.prototype.compose = function(dest) {
+      var m;
+      m = new bit6.Outgoing(this);
+      if (dest != null) {
+        m.to(dest);
       }
-      mx = {
-        id: tmpId,
-        flags: 0x101,
-        created: now,
-        updated: now
-      };
-      for (k in m) {
-        v = m[k];
-        mx[k] = v;
-      }
-      this._processMessage(mx);
-      return this.api('/me/messages', 'POST', m, (function(_this) {
+      return m;
+    };
+
+    Client.prototype._failOutgoingMessage = function(m) {
+      m.status(bit6.Message.FAILED);
+      return this._processMessage(m);
+    };
+
+    Client.prototype._sendMessagePost = function(m, cb) {
+      var tmpId;
+      tmpId = m.id;
+      return this.api('/me/messages', 'POST', m._export(), (function(_this) {
         return function(err, o) {
           var tmp;
           if (err) {
-            mx.flags = 0x103;
-            _this._processMessage(mx);
+            _this._failOutgoingMessage(m);
+            return typeof cb === "function" ? cb(err) : void 0;
           } else {
+            console.log('Msg after POST', o);
             _this._processMessage(o);
             tmp = {
               id: tmpId,
               deleted: Date.now()
             };
             _this._processMessage(tmp);
+            return typeof cb === "function" ? cb(null, _this.messages[o.id]) : void 0;
           }
-          return typeof cb === "function" ? cb(err, _this.messages[o.id]) : void 0;
         };
       })(this));
     };
 
     Client.prototype.markMessageAsRead = function(m) {
-      if (m.incoming() && m.status() < bit6.Message.READ) {
-        m.status(bit6.Message.READ);
-        console.log('Msg to be marked: ', m);
-        this._processMessage(m);
-        this.api('/me/messages/' + m.id, 'PUT', {
-          status: 'read'
-        }, function(err, result) {
-          return console.log('markAsRead result=', result);
-        });
-        return true;
-      } else {
+      if (!m.canMarkRead()) {
         return false;
       }
+      m.status(bit6.Message.READ);
+      console.log('Msg to be marked: ', m);
+      this._processMessage(m);
+      this.api('/me/messages/' + m.id, 'PUT', {
+        status: 'read'
+      }, function(err, result) {
+        return console.log('markAsRead result=', result);
+      });
+      return true;
     };
 
     Client.prototype.deleteMessage = function(m, cb) {
@@ -781,39 +901,46 @@
     };
 
     Client.prototype._processMessages = function(messages) {
-      var c, id, o, _i, _len, _ref, _results;
-      for (_i = 0, _len = messages.length; _i < _len; _i++) {
-        o = messages[_i];
+      var c, i, id, len, o, ref, results;
+      if (!messages) {
+        return;
+      }
+      for (i = 0, len = messages.length; i < len; i++) {
+        o = messages[i];
         this._processMessage(o, true);
       }
-      _ref = this.conversations;
-      _results = [];
-      for (id in _ref) {
-        c = _ref[id];
+      ref = this.conversations;
+      results = [];
+      for (id in ref) {
+        c = ref[id];
         if (c.modified) {
           c.modified = false;
-          _results.push(this.emit('conversation', c, 0));
+          results.push(this.emit('conversation', c, 0));
         } else {
-          _results.push(void 0);
+          results.push(void 0);
         }
       }
-      return _results;
+      return results;
     };
 
     Client.prototype._processMessage = function(o, noConvUpdateEvents) {
-      var conv, convId, m, oldConv, op, _ref, _ref1;
-      m = (_ref = this.messages[o.id]) != null ? _ref : null;
+      var conv, convId, m, oldConv, op, ref, ref1;
+      m = (ref = this.messages[o.id]) != null ? ref : null;
       op = 0;
       if (!m) {
         if ((o != null ? o.deleted : void 0) > 0) {
           return null;
         }
-        m = new bit6.Message(o);
+        if (o instanceof bit6.Message) {
+          m = o;
+        } else {
+          m = new bit6.Message(o);
+        }
         this.messages[m.id] = m;
         op = 1;
       }
       convId = m.getConversationId();
-      conv = oldConv = (_ref1 = this.conversations[convId]) != null ? _ref1 : null;
+      conv = oldConv = (ref1 = this.conversations[convId]) != null ? ref1 : null;
       if (!conv) {
         conv = new bit6.Conversation(convId);
         this.conversations[convId] = conv;
@@ -842,26 +969,165 @@
       return m;
     };
 
-    Client.prototype.getGroupById = function(id) {
-      var g, _i, _len, _ref;
-      if (this.me.groups == null) {
-        return null;
-      }
-      if (id.indexOf('grp:') === 0) {
+    Client.prototype.getGroup = function(id) {
+      var ref;
+      if ((id != null ? id.indexOf('grp:') : void 0) === 0) {
         id = id.substring(4);
       }
-      _ref = this.me.groups;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        g = _ref[_i];
-        if (id === g.id) {
-          return g;
+      return (ref = this.groups[id]) != null ? ref : null;
+    };
+
+    Client.prototype.getGroupById = function(id) {
+      return this.getGroup(id);
+    };
+
+    Client.prototype.createGroup = function(info, cb) {
+      if (info == null) {
+        info = {};
+      }
+      info.identity = this.session.identity;
+      return this.api('/groups', 'POST', info, (function(_this) {
+        return function(err, o) {
+          if (err) {
+            return cb(err);
+          }
+          return _this._loadMe(function(err) {
+            if (err) {
+              return cb(err);
+            }
+            return _this._loadGroupWithMembers(o.id, function(err) {
+              if (err) {
+                return cb(err);
+              }
+              return cb(null, _this.getGroup(o.id));
+            });
+          });
+        };
+      })(this));
+    };
+
+    Client.prototype.joinGroup = function(id, role, cb) {
+      var g, memberInfo, ref;
+      g = this.getGroup(id);
+      if ((g != null ? (ref = g.me) != null ? ref.role : void 0 : void 0) === role) {
+        return cb(null, g);
+      }
+      memberInfo = {
+        id: this.session.identity,
+        role: role
+      };
+      return this.api('/groups/' + id + '/members', 'POST', memberInfo, (function(_this) {
+        return function(err, member) {
+          if (err) {
+            return cb(err);
+          }
+          console.log('Became group member grpId', id);
+          return _this._loadMe(function(err) {
+            if (err) {
+              return cb(err);
+            }
+            return _this._loadGroupWithMembers(id, function(err) {
+              if (err) {
+                return cb(err);
+              }
+              return cb(null, _this.getGroup(id));
+            });
+          });
+        };
+      })(this));
+    };
+
+    Client.prototype.leaveGroup = function(id, cb) {
+      var g;
+      g = this.getGroup(id);
+      if (g == null) {
+        return cb(null);
+      }
+      delete this.groups[id];
+      this.emit('group', g, -1);
+      return this.api('/groups/' + id + '/members/me', 'DELETE', (function(_this) {
+        return function(err, member) {
+          if (err) {
+            return cb(err);
+          }
+          console.log('Left group', id);
+          return cb(null);
+        };
+      })(this));
+    };
+
+    Client.prototype._loadGroupWithMembers = function(id, cb) {
+      return this.api('/groups/' + id, {
+        embed: 'members'
+      }, (function(_this) {
+        return function(err, result) {
+          console.log('Loaded group', id, 'with members: ', result, err);
+          if (result) {
+            _this._processGroupDeltas(result);
+          }
+          if (cb != null) {
+            return cb(err, result);
+          }
+        };
+      })(this));
+    };
+
+    Client.prototype._processGroupInfos = function(infos) {
+      var g, i, id, info, len, me, o, op, ref, ref1, results, tmp;
+      tmp = this.groups;
+      this.groups = {};
+      for (i = 0, len = infos.length; i < len; i++) {
+        info = infos[i];
+        me = {
+          identity: info.identity,
+          role: info.role
+        };
+        o = (ref = info != null ? info.group : void 0) != null ? ref : {
+          id: info.id
+        };
+        o.me = me;
+        op = 0;
+        g = (ref1 = tmp[o.id]) != null ? ref1 : null;
+        if (g == null) {
+          g = new bit6.Group(o.id);
+          op = 1;
+        } else {
+          delete tmp[o.id];
+        }
+        this.groups[g.id] = g;
+        if (g.update(o)) {
+          this.emit('group', g, op);
         }
       }
-      return null;
+      results = [];
+      for (id in tmp) {
+        g = tmp[id];
+        results.push(this.emit('group', g, -1));
+      }
+      return results;
+    };
+
+    Client.prototype._processGroupDeltas = function(o) {
+      var g, op;
+      op = 0;
+      g = this.groups[o.id];
+      if (g == null) {
+        g = new bit6.Group(o.id);
+        op = 1;
+        this.groups[g.id] = g;
+      }
+      if (g.update(o)) {
+        return this.emit('group', g, op);
+      }
     };
 
     Client.prototype.sendTypingNotification = function(to) {
-      return this._sendNotification(to, 'typing');
+      var now;
+      now = Date.now();
+      if (now - this.lastTypingSent > 7000) {
+        this.lastTypingSent = now;
+        return this._sendNotification(to, 'typing');
+      }
     };
 
     Client.prototype.sendNotification = function(to, type, data) {
@@ -872,7 +1138,7 @@
     };
 
     Client.prototype._sendNotification = function(to, type, data) {
-      var m, msg;
+      var m, msg, ref;
       msg = {
         type: type,
         from: this.session.identity
@@ -884,11 +1150,13 @@
         'to': to,
         'body': JSON.stringify(msg)
       };
-      this.rpc.call('verto.info', {
-        msg: m
-      }, (function(_this) {
-        return function(err, result) {};
-      })(this));
+      if ((ref = this.rpc) != null) {
+        ref.call('verto.info', {
+          msg: m
+        }, (function(_this) {
+          return function(err, result) {};
+        })(this));
+      }
       return true;
     };
 
@@ -897,11 +1165,11 @@
     };
 
     Client.prototype.findDialogByCallID = function(callID) {
-      var c, _i, _len, _ref, _ref1;
-      _ref = this.dialogs;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        c = _ref[_i];
-        if (((_ref1 = c.params) != null ? _ref1.callID : void 0) === callID) {
+      var c, i, len, ref, ref1;
+      ref = this.dialogs;
+      for (i = 0, len = ref.length; i < len; i++) {
+        c = ref[i];
+        if (((ref1 = c.params) != null ? ref1.callID : void 0) === callID) {
           return c;
         }
       }
@@ -909,10 +1177,10 @@
     };
 
     Client.prototype.findDialogByOther = function(other) {
-      var c, _i, _len, _ref;
-      _ref = this.dialogs;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        c = _ref[_i];
+      var c, i, len, ref;
+      ref = this.dialogs;
+      for (i = 0, len = ref.length; i < len; i++) {
+        c = ref[i];
         if (c.other === other) {
           return c;
         }
@@ -921,10 +1189,10 @@
     };
 
     Client.prototype.findDialogByRdest = function(rdest) {
-      var c, _i, _len, _ref;
-      _ref = this.dialogs;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        c = _ref[_i];
+      var c, i, len, ref;
+      ref = this.dialogs;
+      for (i = 0, len = ref.length; i < len; i++) {
+        c = ref[i];
         if (c.rdest === rdest) {
           return c;
         }
@@ -933,10 +1201,10 @@
     };
 
     Client.prototype.deleteDialog = function(d) {
-      var c, idx, _i, _len, _ref;
-      _ref = this.dialogs;
-      for (idx = _i = 0, _len = _ref.length; _i < _len; idx = ++_i) {
-        c = _ref[idx];
+      var c, i, idx, len, ref;
+      ref = this.dialogs;
+      for (idx = i = 0, len = ref.length; i < len; idx = ++i) {
+        c = ref[idx];
         if (c === d) {
           this.dialogs.splice(idx, 1);
           return;
@@ -966,42 +1234,15 @@
       return c;
     };
 
-    Client.prototype.setDeviceIdFactory = function(fn) {
-      return this.customCreateDeviceId = fn;
-    };
-
-    Client.prototype.setRtcFactory = function(fn) {
-      return this.customCreateRtc = fn;
-    };
-
-    Client.prototype.setRtcMediaFactory = function(fn) {
-      return this.customCreateRtcMedia = fn;
-    };
-
     Client.prototype._createDeviceId = function() {
-      var _ref;
-      return (_ref = typeof this.customCreateDeviceId === "function" ? this.customCreateDeviceId() : void 0) != null ? _ref : this._createDefaultDeviceId();
-    };
-
-    Client.prototype._createDefaultDeviceId = function() {
       return 'web-' + bit6.JsonRpc.generateGUID();
     };
 
     Client.prototype._createRtc = function() {
-      var _ref;
-      return (_ref = typeof this.customCreateRtc === "function" ? this.customCreateRtc() : void 0) != null ? _ref : this._createDefaultRtc();
-    };
-
-    Client.prototype._createDefaultRtc = function() {
       return new bit6.Rtc();
     };
 
     Client.prototype._createRtcMedia = function() {
-      var _ref;
-      return (_ref = typeof this.customCreateRtcMedia === "function" ? this.customCreateRtcMedia() : void 0) != null ? _ref : this._createDefaultRtcMedia();
-    };
-
-    Client.prototype._createDefaultRtcMedia = function() {
       return new bit6.RtcMedia();
     };
 
@@ -1028,7 +1269,7 @@
     };
 
     Client.prototype.getNameFromIdentity = function(ident) {
-      var g, r, t, _ref, _ref1, _ref2;
+      var g, r, ref, ref1, ref2, t;
       t = ident;
       if (t == null) {
         console.log('getNameFromId null', ident);
@@ -1043,27 +1284,56 @@
           t = r[1];
           break;
         case 'grp':
-          g = this.getGroupById(ident);
-          t = (_ref = g != null ? (_ref1 = g.group) != null ? (_ref2 = _ref1.meta) != null ? _ref2.title : void 0 : void 0 : void 0) != null ? _ref : t;
+          g = this.getGroup(ident);
+          t = (ref = g != null ? (ref1 = g.group) != null ? (ref2 = ref1.meta) != null ? ref2.title : void 0 : void 0 : void 0) != null ? ref : t;
       }
       return t;
     };
 
     Client.prototype._handleRtMessage = function(m) {
-      var _ref, _ref1;
+      var g, gid, i, len, o, old, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8;
       switch (m.type) {
         case 'push':
           return this._handlePushRtMessage(m.data);
         case 'update':
-          if (((_ref = m.data) != null ? _ref.messages : void 0) != null) {
-            return this._processMessages(m.data.messages);
+          if (((ref = m.data) != null ? ref.messages : void 0) != null) {
+            this._processMessages(m.data.messages);
+          }
+          if (((ref1 = m.data) != null ? (ref2 = ref1.groups) != null ? ref2.length : void 0 : void 0) > 0) {
+            ref3 = m.data.groups;
+            for (i = 0, len = ref3.length; i < len; i++) {
+              o = ref3[i];
+              this._loadGroupWithMembers(o.id);
+            }
+            return this._loadMe(function(err) {
+              return console.log('LoadMe on Group update done', err);
+            });
+          }
+          break;
+        case 'presence':
+          if ((m != null ? m.from : void 0) && ((m != null ? m.data : void 0) != null)) {
+            old = this.presence[m.from];
+            this.presence[m.from] = m.data;
+            if (m.data.status == null) {
+              this.presence[m.from].status = (ref4 = old != null ? old.status : void 0) != null ? ref4 : 'offline';
+            }
+            p = (ref5 = (ref6 = m.data) != null ? ref6.profile : void 0) != null ? ref5 : null;
+            if (p && (this.groups != null)) {
+              ref7 = this.groups;
+              for (gid in ref7) {
+                g = ref7[gid];
+                if (g._updateMemberProfile(m.from, p)) {
+                  this.emit('group', g, 0);
+                }
+              }
+            }
+            return this.emit('notification', m);
           }
           break;
         case 'typing':
-        case 'presence':
           return this.emit('notification', m);
         default:
-          if ((m != null ? (_ref1 = m.type) != null ? _ref1.length : void 0 : void 0) > 1 && m.type.charAt(0) === '_') {
+          if ((m != null ? (ref8 = m.type) != null ? ref8.length : void 0 : void 0) > 1 && m.type.charAt(0) === '_') {
             m.type = m.type.substring(1);
             return this.emit('notification', m);
           }
@@ -1071,31 +1341,29 @@
     };
 
     Client.prototype._handlePushRtMessage = function(d) {
-      var audioOnly, audioVideo, c, ch, mtype, opts;
-      mtype = d.flags & 0x0f00;
+      var c, ch, mtype, opts;
+      mtype = bit6.Message.typeFromFlags(d.flags);
       switch (mtype) {
-        case 0x0500:
-          ch = d.flags & 0x00f0;
-          audioVideo = ch === 0x0090;
-          audioOnly = ch === 0x0080;
+        case bit6.Message.INC_CALL:
+          ch = bit6.Message.channelFromFlags(d.flags);
           opts = {
-            audio: audioVideo || audioOnly,
-            video: audioVideo,
-            data: true
+            audio: (ch & bit6.Message.AUDIO) === bit6.Message.AUDIO,
+            video: (ch & bit6.Message.VIDEO) === bit6.Message.VIDEO,
+            data: (ch & bit6.Message.DATA) === bit6.Message.DATA
           };
           c = this._createDialog(false, d.sender, opts);
           c.rdest = d.rdest;
           return this.emit('incomingCall', c);
-        case 0x0600:
+        case bit6.Message.MISSED_CALL:
           console.log('missed call from', d.sender, 'rdest=', d.rdest);
           c = this.findDialogByRdest(d.rdest);
           if (c != null) {
             return c.hangup();
           }
           break;
-        case 0x0700:
+        case bit6.Message.ACCEPTED_CALL:
           return console.log('accepted call from', d.sender, 'rdest=', d.rdest);
-        case 0x0800:
+        case bit6.Message.REJECTED_CALL:
           return console.log('rejected call from', d.sender, 'rdest=', d.rdest);
         case 0x0100:
         case 0x0200:
@@ -1112,15 +1380,15 @@
     Client.prototype._handleRpcNotify = function(method, params) {};
 
     Client.prototype._handleRpcCall = function(method, params, done) {
-      var c, ex, t, x, _ref;
+      var c, error, ex, ref, t, x;
       switch (method) {
         case 'verto.info':
-          if ((params != null ? (_ref = params.msg) != null ? _ref.body : void 0 : void 0) != null) {
+          if ((params != null ? (ref = params.msg) != null ? ref.body : void 0 : void 0) != null) {
             try {
               x = JSON.parse(params.msg.body);
               this._handleRtMessage(x);
-            } catch (_error) {
-              ex = _error;
+            } catch (error) {
+              ex = error;
               console.log('Exception parsing JSON response verto.info', ex);
               console.log('  -- RAW {{{', params.msg.body, '}}}');
             }
@@ -1154,8 +1422,8 @@
     };
 
     Client.prototype._connectRt = function() {
-      var opts, s, servers, _ref, _ref1;
-      servers = (_ref = this.session.config) != null ? (_ref1 = _ref.rtc) != null ? _ref1.vertoServers : void 0 : void 0;
+      var opts, ref, ref1, s, servers;
+      servers = (ref = this.session.config) != null ? (ref1 = ref.rtc) != null ? ref1.vertoServers : void 0 : void 0;
       if (servers.length < 1) {
         console.log('Error: no Verto servers');
         return;
@@ -1177,28 +1445,26 @@
         })(this)
       };
       this.rpc = new bit6.JsonRpc(opts);
-      return this.rpc.call('login', {}, (function(_this) {
-        return function(err, result) {};
-      })(this));
+      return this.rpc.connect();
     };
 
     Client.prototype._disconnectRt = function() {
-      if (!this.rpc) {
-        return;
+      var ref;
+      if ((ref = this.rpc) != null) {
+        ref.close();
       }
-      this.rpc.close();
       return this.rpc = null;
     };
 
     Client.prototype.api = function() {
-      var cb, params, path, _i;
-      path = arguments[0], params = 3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : (_i = 1, []), cb = arguments[_i++];
-      return this._api.apply(this, ['/app/1' + path].concat(__slice.call(params), [cb]));
+      var cb, i, params, path;
+      path = arguments[0], params = 3 <= arguments.length ? slice.call(arguments, 1, i = arguments.length - 1) : (i = 1, []), cb = arguments[i++];
+      return this._api.apply(this, ['/app/1' + path].concat(slice.call(params), [cb]));
     };
 
     Client.prototype._api = function() {
-      var arr, cb, data, k, m, params, path, qs, url, xhr, _i;
-      path = arguments[0], params = 3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : (_i = 1, []), cb = arguments[_i++];
+      var cb, data, i, m, params, path, url, xhr;
+      path = arguments[0], params = 3 <= arguments.length ? slice.call(arguments, 1, i = arguments.length - 1) : (i = 1, []), cb = arguments[i++];
       if (params.length === 1) {
         if (typeof params[0] === 'string') {
           m = params[0];
@@ -1226,26 +1492,17 @@
       if (this.session.token) {
         data._auth = 'bearer ' + this.session.token;
       }
-      arr = (function() {
-        var _results;
-        _results = [];
-        for (k in data) {
-          _results.push(encodeURIComponent(k) + '=' + encodeURIComponent(data[k]));
-        }
-        return _results;
-      })();
-      qs = arr.join('&');
       xhr = new XMLHttpRequest();
       xhr.open('POST', url, true);
-      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.onreadystatechange = function() {
-        var ex, r;
+        var error, ex, r;
         if (xhr.readyState === 4) {
           r = null;
           try {
             r = JSON.parse(xhr.response);
-          } catch (_error) {
-            ex = _error;
+          } catch (error) {
+            ex = error;
             if (typeof cb === "function") {
               cb({
                 'status': 501,
@@ -1272,7 +1529,27 @@
           }
         }
       };
-      return xhr.send(qs);
+      return xhr.send(JSON.stringify(data));
+    };
+
+    Client.prototype.urlencodeJsObject = function(obj, prefix) {
+      var k, p, str, v;
+      str = [];
+      str = (function() {
+        var results;
+        results = [];
+        for (p in obj) {
+          v = obj[p];
+          k = prefix ? prefix + '[' + p + ']' : p;
+          if (typeof v === 'object') {
+            results.push(this.urlencodeJsObject(v, k));
+          } else {
+            results.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+          }
+        }
+        return results;
+      }).call(this);
+      return str.join('&');
     };
 
     Client.normalizeIdentityUri = function(u) {
@@ -1286,6 +1563,11 @@
       v = u.substr(pos + 1);
       filter = matcher = null;
       switch (k) {
+        case 'mailto':
+          v = v.toLowerCase();
+          filter = /[^a-z0-9._%+-@]/;
+          matcher = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,8}$/;
+          break;
         case 'grp':
           filter = /[\s]/;
           matcher = /[0-9a-zA-Z._]{22}/;
@@ -1305,7 +1587,7 @@
           matcher = /^[a-z0-9.]+$/;
           break;
         default:
-          return null;
+          filter = /[^a-zA-Z0-9._%+-@]/;
       }
       if (filter) {
         v = v.replace(filter, '');
@@ -1323,10 +1605,8 @@
 }).call(this);
 
 (function() {
-  window.bit6 || (window.bit6 = {});
-
   bit6.Message = (function() {
-    var CHANNEL_MASK, INCOMING, STATUS_MASK, TYPE_MASK, statusAsString;
+    var CHANNEL_MASK, INCOMING, STATUS_MASK, TYPE_MASK, callStatusAsString, messageStatusAsString;
 
     INCOMING = 0x1000;
 
@@ -1348,7 +1628,35 @@
 
     Message.READ = 0x0005;
 
-    statusAsString = {
+    Message.ANSWER = 0x0001;
+
+    Message.MISSED = 0x0002;
+
+    Message.NOANSWER = 0x0004;
+
+    Message.SMS = 0x0010;
+
+    Message.AUDIO = 0x0010;
+
+    Message.VIDEO = 0x0080;
+
+    Message.DATA = 0x0020;
+
+    Message.TEXT = 0x0100;
+
+    Message.ATTACH = 0x0200;
+
+    Message.GEOLOC = 0x0300;
+
+    Message.CUSTOM = 0x0400;
+
+    Message.CALL = 0x0500;
+
+    Message.INC_CALL = 0x0500;
+
+    Message.MISSED_CALL = 0x0600;
+
+    messageStatusAsString = {
       0x0001: 'Sending',
       0x0002: 'Sent',
       0x0003: 'Failed',
@@ -1356,19 +1664,37 @@
       0x0005: 'Read'
     };
 
+    callStatusAsString = {
+      0x0001: 'Answered',
+      0x0002: 'Missed',
+      0x0003: 'Failed',
+      0x0004: 'No answer'
+    };
+
     function Message(o) {
-      var k, v;
       this.id = null;
       this.me = null;
       this.other = null;
       this.flags = 0;
       if (o != null) {
-        for (k in o) {
-          v = o[k];
-          this[k] = v;
-        }
+        this.populate(o);
       }
     }
+
+    Message.prototype.populate = function(o) {
+      var j, k, len, ref, results;
+      ref = ['id', 'flags', 'me', 'other', 'content', 'data', 'created', 'updated', 'deleted'];
+      results = [];
+      for (j = 0, len = ref.length; j < len; j++) {
+        k = ref[j];
+        if ((o != null ? o[k] : void 0) != null) {
+          results.push(this[k] = o[k]);
+        } else {
+          results.push(void 0);
+        }
+      }
+      return results;
+    };
 
     Message.prototype.updateMessage = function(t) {
       if (t.deleted != null) {
@@ -1388,12 +1714,12 @@
     };
 
     Message.prototype._updateMessageOthers = function(old, others) {
-      var i, idx, o, s, t, _i, _j, _len, _len1, _ref, _results;
-      _results = [];
-      for (_i = 0, _len = others.length; _i < _len; _i++) {
-        t = others[_i];
+      var i, idx, j, l, len, len1, o, ref, results, s, t;
+      results = [];
+      for (j = 0, len = others.length; j < len; j++) {
+        t = others[j];
         idx = -1;
-        for (i = _j = 0, _len1 = old.length; _j < _len1; i = ++_j) {
+        for (i = l = 0, len1 = old.length; l < len1; i = ++l) {
           o = old[i];
           if (o.uri === t.uri) {
             idx = i;
@@ -1401,17 +1727,17 @@
           }
         }
         if (idx < 0) {
-          _results.push(old.push(t));
+          results.push(old.push(t));
         } else {
-          s = (_ref = old[idx]) != null ? _ref.status : void 0;
+          s = (ref = old[idx]) != null ? ref.status : void 0;
           if (!s || s < t.status) {
-            _results.push(old[idx].status = t.status);
+            results.push(old[idx].status = t.status);
           } else {
-            _results.push(void 0);
+            results.push(void 0);
           }
         }
       }
-      return _results;
+      return results;
     };
 
     Message.prototype.incoming = function() {
@@ -1425,6 +1751,28 @@
       return this.flags & STATUS_MASK;
     };
 
+    Message.prototype.channel = function(s) {
+      if (s != null) {
+        this.flags = (this.flags & (~CHANNEL_MASK)) | (s & CHANNEL_MASK);
+      }
+      return this.flags & CHANNEL_MASK;
+    };
+
+    Message.prototype.type = function(s) {
+      if (s != null) {
+        this.flags = (this.flags & (~TYPE_MASK)) | (s & TYPE_MASK);
+      }
+      return this.flags & TYPE_MASK;
+    };
+
+    Message.prototype.isCall = function() {
+      return (this.flags & TYPE_MASK) === Message.CALL;
+    };
+
+    Message.prototype.canMarkRead = function() {
+      return this.incoming() && !this.isCall() && this.status() < bit6.Message.READ;
+    };
+
     Message.prototype.getConversationId = function() {
       var convId;
       convId = (this.me != null) && this.me.indexOf('grp:') === 0 ? this.me : this.other;
@@ -1435,9 +1783,11 @@
     };
 
     Message.prototype.getStatusString = function() {
-      var s;
+      var r, s, t;
+      t = this.flags & TYPE_MASK;
       s = this.flags & STATUS_MASK;
-      return statusAsString[s];
+      r = t === Message.CALL ? callStatusAsString : messageStatusAsString;
+      return r[s];
     };
 
     Message.prototype.domId = function() {
@@ -1452,6 +1802,18 @@
       }
     };
 
+    Message.typeFromFlags = function(s) {
+      return s & TYPE_MASK;
+    };
+
+    Message.channelFromFlags = function(s) {
+      return s & CHANNEL_MASK;
+    };
+
+    Message.statusFromFlags = function(s) {
+      return s & STATUS_MASK;
+    };
+
     return Message;
 
   })();
@@ -1459,13 +1821,418 @@
 }).call(this);
 
 (function() {
-  var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
 
-  window.bit6 || (window.bit6 = {});
+  bit6.Outgoing = (function(superClass) {
+    extend(Outgoing, superClass);
 
-  bit6.RtcMedia = (function(_super) {
-    __extends(RtcMedia, _super);
+    function Outgoing(client) {
+      this.client = client;
+      Outgoing.__super__.constructor.apply(this, arguments);
+      this.id = bit6.JsonRpc.generateGUID();
+      this.me = this.client.session.identity;
+      this.created = this.updated = Date.now();
+      this.flags = bit6.Message.TEXT | bit6.Message.SENDING;
+    }
+
+    Outgoing.prototype._export = function() {
+      var i, k, len, n, x;
+      n = ['id', 'flags', 'me', 'other', 'content', 'data'];
+      x = {};
+      for (i = 0, len = n.length; i < len; i++) {
+        k = n[i];
+        if (this[k]) {
+          x[k] = this[k];
+        }
+      }
+      return x;
+    };
+
+    Outgoing.prototype.hasAttachment = function() {
+      return this.attachFile != null;
+    };
+
+    Outgoing.prototype.to = function(other) {
+      this.other = other;
+      return this;
+    };
+
+    Outgoing.prototype.text = function(text) {
+      this.content = text;
+      return this;
+    };
+
+    Outgoing.prototype.attach = function(f) {
+      this.attachFile = f;
+      this.flags = bit6.Message.ATTACH | this.status();
+      this.progress = 0;
+      this.total = -1;
+      return this;
+    };
+
+    Outgoing.prototype.send = function(cb) {
+      console.log('Sending: ', this);
+      if (!this.hasAttachment()) {
+        this.client._processMessage(this);
+        return this.client._sendMessagePost(this, cb);
+      }
+      this._loadAttachmentAndThumbnail((function(_this) {
+        return function(err) {
+          _this.client._processMessage(_this);
+          if (err != null) {
+            return cb(err);
+          }
+          return _this._getUploadParams(function(err, params) {
+            console.log('Got upload params', params, 'err=', err);
+            if (err != null) {
+              return cb(err);
+            }
+            return _this._uploadAttachmentAndThumbnail(params, function(err) {
+              if (err != null) {
+                return cb(err);
+              }
+              return _this.client._sendMessagePost(_this, cb);
+            });
+          });
+        };
+      })(this));
+      return this;
+    };
+
+    Outgoing.prototype._getUploadParams = function(cb) {
+      var opts, ref, ref1;
+      if (((ref = this.data) != null ? ref.type : void 0) == null) {
+        return cb('Attachment type is not specified', null);
+      }
+      opts = {
+        type: this.data.type
+      };
+      opts.thumb = (ref1 = this.thumbBlob) != null ? ref1.type : void 0;
+      return this.client.api('/me/messages/attach', 'post', opts, cb);
+    };
+
+    Outgoing.prototype._loadAttachmentAndThumbnail = function(cb) {
+      return bit6.Transfer.readFileAsArrayBuffer(this.attachFile, (function(_this) {
+        return function(err, info, data) {
+          console.log('Read file ', info, 'err=', err);
+          if (err != null) {
+            return cb(err);
+          }
+          return _this._handleAttachmentFileLoaded(info, data, cb);
+        };
+      })(this));
+    };
+
+    Outgoing.prototype._uploadAttachmentAndThumbnail = function(params, cb) {
+      var f, fileUploadedSize, x;
+      f = this.attachFile;
+      fileUploadedSize = 0;
+      x = params.uploads.attach;
+      return bit6.Outgoing.uploadFile(x.endpoint, x.params, f, (function(_this) {
+        return function(err) {
+          console.log('Main attach uploaded err=', err);
+          if (err != null) {
+            return cb(err);
+          }
+          _this.data.attach = params.keys.attach;
+          if ((_this.data.thumb == null) || (_this.thumbBlob == null)) {
+            return cb(null);
+          }
+          x = params.uploads.thumb;
+          return bit6.Outgoing.uploadFile(x.endpoint, x.params, _this.thumbBlob, function(err) {
+            console.log('Thumb uploaded err=', err);
+            if (err != null) {
+              return cb(err);
+            }
+            _this.data.thumb = params.keys.thumb;
+            return cb(null);
+          }, function(val, total) {
+            _this.progress = val + fileUploadedSize;
+            _this.total = total + fileUploadedSize;
+            return _this.client.emit('message', _this, 0);
+          });
+        };
+      })(this), (function(_this) {
+        return function(val, total) {
+          fileUploadedSize = val;
+          _this.progress = val;
+          _this.total = total;
+          return _this.client.emit('message', _this, 0);
+        };
+      })(this));
+    };
+
+    Outgoing.prototype._handleAttachmentFileLoaded = function(info, data, cb) {
+      var blob, isAudio, isImage, isVideo, media, ref, srcUrl, t;
+      t = (ref = info != null ? info.type : void 0) != null ? ref : '';
+      isImage = t.indexOf('image/') === 0;
+      isVideo = t.indexOf('video/') === 0;
+      isAudio = t.indexOf('audio/') === 0;
+      if (isImage || isVideo) {
+        blob = new Blob([data], info);
+        srcUrl = (window.URL || window.webkitURL).createObjectURL(blob);
+        media = null;
+        if (isImage) {
+          media = new Image();
+          media.onload = (function(_this) {
+            return function() {
+              return _this._attachmentMediaLoaded(media, info, cb);
+            };
+          })(this);
+        } else {
+          media = document.createElement('video');
+          media.setAttribute('preload', '');
+          media.setAttribute('muted', '');
+          media.onloadedmetadata = (function(_this) {
+            return function() {
+              return console.log('Video meta loaded', media.videoWidth, media.videoHeight, media.duration);
+            };
+          })(this);
+          media.onloadeddata = (function(_this) {
+            return function() {
+              console.log('Video loaded', media);
+              return _this._attachmentMediaLoaded(media, info, cb);
+            };
+          })(this);
+        }
+        return media.src = srcUrl;
+      } else if (isAudio) {
+        this.data = {
+          type: info.type
+        };
+        return cb(null);
+      } else {
+        return cb('Cannot handle files with type' + t);
+      }
+    };
+
+    Outgoing.prototype._attachmentMediaLoaded = function(media, info, cb) {
+      (window.URL || window.webkitURL).revokeObjectURL(media.src);
+      return bit6.Outgoing.createThumbnail(media, (function(_this) {
+        return function(err, thumbDataUrl) {
+          console.log('Thumb created err=', err);
+          if (err != null) {
+            return cb(err);
+          }
+          if (thumbDataUrl != null) {
+            _this.thumbBlob = bit6.Transfer.dataUrlToBlob(thumbDataUrl);
+          }
+          _this.data = {
+            type: info.type,
+            attach: thumbDataUrl,
+            thumb: thumbDataUrl
+          };
+          return cb(null);
+        };
+      })(this));
+    };
+
+    Outgoing.createThumbnail = function(media, cb) {
+      var canvas, ctx, dataUrl, maxHeight, maxWidth, ref, ref1, th, tw;
+      maxWidth = 320;
+      maxHeight = 320;
+      tw = (ref = media != null ? media.videoWidth : void 0) != null ? ref : media.width;
+      th = (ref1 = media != null ? media.videoHeight : void 0) != null ? ref1 : media.height;
+      console.log('Orig media loaded. dimen=', tw, th);
+      if (tw > th) {
+        if (tw > maxWidth) {
+          th *= maxWidth / tw;
+          tw = maxWidth;
+        }
+      } else {
+        if (th > maxHeight) {
+          tw *= maxHeight / th;
+          th = maxHeight;
+        }
+      }
+      canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      ctx = canvas.getContext('2d');
+      ctx.drawImage(media, 0, 0, tw, th);
+      dataUrl = canvas.toDataURL('image/jpeg');
+      return cb(null, dataUrl);
+    };
+
+    Outgoing.uploadFile = function(endpoint, params, f, cb, progressCb) {
+      var b;
+      b = new bit6.Outgoing.UploadDataBuilder(params, f);
+      return b.build(function(err, uploadData, contentType) {
+        if (err != null) {
+          return cb(err);
+        }
+        return bit6.Outgoing._upload(endpoint, uploadData, contentType, cb, progressCb);
+      });
+    };
+
+    Outgoing._upload = function(endpoint, uploadData, contentType, cb, progressCb) {
+      var ref, up, xhr;
+      xhr = new XMLHttpRequest();
+      xhr.open('POST', endpoint, true);
+      xhr.onload = function(e) {
+        console.log('xhr complete status=' + xhr.status + ' ' + xhr.statusText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          return cb(null);
+        } else {
+          return cb({
+            status: xhr.status,
+            text: xhr.statusText,
+            info: xhr.responseText
+          });
+        }
+      };
+      xhr.onerror = function(e) {
+        console.log('xhr error', e);
+        return cb(e);
+      };
+      xhr.onabort = function(e) {
+        console.log('xhr cancel');
+        return cb(e);
+      };
+      xhr.onprogress = function(e) {
+        return console.log('xhr progress', e);
+      };
+      up = (ref = xhr != null ? xhr.upload : void 0) != null ? ref : null;
+      if (up) {
+        up.onload = function(e) {
+          return console.log('xhr upload complete', e);
+        };
+        up.onerror = function(e) {
+          return console.log('xhr upload error', e);
+        };
+        up.onabort = function(e) {
+          return console.log('xhr upload cancel', e);
+        };
+        up.onprogress = function(e) {
+          var total;
+          total = e.lengthComputable ? e.total : -1;
+          return typeof progressCb === "function" ? progressCb(e.loaded, total) : void 0;
+        };
+      }
+      if (contentType != null) {
+        xhr.setRequestHeader('Content-Type', contentType);
+      }
+      return xhr.send(uploadData);
+    };
+
+    return Outgoing;
+
+  })(bit6.Message);
+
+  bit6.Outgoing.UploadDataBuilder = (function() {
+    function UploadDataBuilder(params, f) {
+      if (!this._needsFormDataShim()) {
+        return this._createFormData(params, f);
+      }
+      this._initMultiPart(params, f);
+    }
+
+    UploadDataBuilder.prototype._createFormData = function(params, f) {
+      var k, v;
+      this.fd = new FormData();
+      for (k in params) {
+        v = params[k];
+        this.fd.append(k, v);
+      }
+      return this.fd.append('file', f);
+    };
+
+    UploadDataBuilder.prototype._initMultiPart = function(params, f) {
+      var k, v;
+      this.boundary = Array(21).join('-') + (+new Date() * (1e16 * Math.random())).toString(36);
+      this.parts = [];
+      for (k in params) {
+        v = params[k];
+        this._append(k, v);
+      }
+      if (f instanceof File) {
+        return this.fileToLoad = f;
+      } else {
+        return this._append('file', f);
+      }
+    };
+
+    UploadDataBuilder.prototype._append = function(name, value, filename) {
+      this.parts.push('--' + this.boundary + '\r\nContent-Disposition: form-data; name="' + name + '"');
+      if (value instanceof Blob) {
+        if (filename == null) {
+          filename = 'blob';
+        }
+        this.parts.push('; filename="' + filename + '"\r\nContent-Type: ' + value.type);
+      }
+      this.parts.push('\r\n\r\n');
+      this.parts.push(value);
+      return this.parts.push('\r\n');
+    };
+
+    UploadDataBuilder.prototype.build = function(cb) {
+      if (this.fd != null) {
+        return cb(null, this.fd);
+      }
+      return this._ensureFileLoaded('file', this.fileToLoad, (function(_this) {
+        return function(err) {
+          if (err) {
+            return cb(err);
+          }
+          return _this._completeMultiPart(cb);
+        };
+      })(this));
+    };
+
+    UploadDataBuilder.prototype._ensureFileLoaded = function(name, f, cb) {
+      if (f == null) {
+        return cb(null);
+      }
+      return bit6.Transfer.readFileAsArrayBuffer(f, (function(_this) {
+        return function(err, info, data) {
+          if (err) {
+            return cb(err);
+          }
+          _this._append(name, new Blob([data], {
+            type: info.type
+          }, info.name));
+          return cb(null);
+        };
+      })(this));
+    };
+
+    UploadDataBuilder.prototype._completeMultiPart = function(cb) {
+      var data, fr;
+      this.parts.push('--' + this.boundary + '--');
+      data = new Blob(this.parts);
+      fr = new FileReader();
+      fr.onload = (function(_this) {
+        return function() {
+          return cb(null, fr.result, 'multipart/form-data; boundary=' + _this.boundary);
+        };
+      })(this);
+      fr.onerror = function(err) {
+        return cb(err);
+      };
+      return fr.readAsArrayBuffer(data);
+    };
+
+    UploadDataBuilder.prototype._needsFormDataShim = function() {
+      var flag, ua, v;
+      ua = navigator.userAgent;
+      v = navigator.vendor;
+      flag = ~ua.indexOf('Android') && ~v.indexOf('Google') && !~ua.indexOf('Chrome');
+      return flag && ua.match(/AppleWebKit\/(\d+)/).pop() <= 534;
+    };
+
+    return UploadDataBuilder;
+
+  })();
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  bit6.RtcMedia = (function(superClass) {
+    extend(RtcMedia, superClass);
 
     function RtcMedia() {
       return RtcMedia.__super__.constructor.apply(this, arguments);
@@ -1505,21 +2272,21 @@
     };
 
     RtcMedia.prototype._done = function(ok) {
-      var cb, x, _i, _len, _results;
+      var cb, i, len, results, x;
       this.preparing = false;
       this.ok = ok;
       x = this.cbs;
       this.cbs = [];
-      _results = [];
-      for (_i = 0, _len = x.length; _i < _len; _i++) {
-        cb = x[_i];
-        _results.push(cb(this.ok));
+      results = [];
+      for (i = 0, len = x.length; i < len; i++) {
+        cb = x[i];
+        results.push(cb(this.ok));
       }
-      return _results;
+      return results;
     };
 
     RtcMedia.prototype.stop = function() {
-      var _ref, _ref1;
+      var ref, ref1;
       if (this.localStream) {
         this.localStream.stop();
         this.localStream = null;
@@ -1527,9 +2294,9 @@
       if (this.localEl) {
         this.localEl.src = '';
         if (!this.options.localMediaEl) {
-          if ((_ref = this.localEl) != null) {
-            if ((_ref1 = _ref.parentNode) != null) {
-              _ref1.removeChild(this.localEl);
+          if ((ref = this.localEl) != null) {
+            if ((ref1 = ref.parentNode) != null) {
+              ref1.removeChild(this.localEl);
             }
           }
         }
@@ -1538,14 +2305,15 @@
     };
 
     RtcMedia.prototype._handleUserMedia = function(stream) {
-      var e, _ref;
+      var e, ref;
       this.localStream = stream;
-      e = (_ref = this.options.localMediaEl) != null ? _ref : null;
+      e = (ref = this.options.localMediaEl) != null ? ref : null;
       if (!e && this.options.video) {
         e = document.createElement('video');
         e.setAttribute('class', 'local');
         e.setAttribute('autoplay', 'true');
         e.setAttribute('muted', 'true');
+        e.muted = true;
         this.options.containerEl.appendChild(e);
       }
       this.localEl = e;
@@ -1579,7 +2347,7 @@
       } else if ((elem != null ? elem.mozSrcObject : void 0) != null) {
         elem.mozSrcObject = stream;
       } else if ((elem != null ? elem.src : void 0) != null) {
-        elem.src = URL.createObjectURL(stream);
+        elem.src = window.URL.createObjectURL(stream);
       } else {
         console.log('Error attaching stream to element', elem);
       }
@@ -1593,13 +2361,11 @@
 }).call(this);
 
 (function() {
-  var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
 
-  window.bit6 || (window.bit6 = {});
-
-  bit6.Rtc = (function(_super) {
-    __extends(Rtc, _super);
+  bit6.Rtc = (function(superClass) {
+    extend(Rtc, superClass);
 
     function Rtc() {
       return Rtc.__super__.constructor.apply(this, arguments);
@@ -1647,7 +2413,7 @@
     };
 
     Rtc.prototype.stop = function() {
-      var _ref, _ref1;
+      var ref, ref1;
       this.isStarted = false;
       if (this.remoteStream) {
         this.remoteStream = null;
@@ -1655,9 +2421,9 @@
       if (this.remoteEl) {
         this.remoteEl.src = '';
         if (!this.options.remoteMediaEl) {
-          if ((_ref = this.remoteEl) != null) {
-            if ((_ref1 = _ref.parentNode) != null) {
-              _ref1.removeChild(this.remoteEl);
+          if ((ref = this.remoteEl) != null) {
+            if ((ref1 = ref.parentNode) != null) {
+              ref1.removeChild(this.remoteEl);
             }
           }
         }
@@ -1674,7 +2440,7 @@
     };
 
     Rtc.prototype._preparePeerConnection = function() {
-      var _ref;
+      var ref;
       if (this.isStarted) {
         return false;
       }
@@ -1682,7 +2448,7 @@
       if (this.pc == null) {
         return false;
       }
-      if ((_ref = this.media) != null ? _ref.localStream : void 0) {
+      if ((ref = this.media) != null ? ref.localStream : void 0) {
         this.pc.addStream(this.media.localStream);
       }
       this.isStarted = true;
@@ -1690,9 +2456,9 @@
     };
 
     Rtc.prototype._createPeerConnection = function() {
-      var PeerConnection, ex, pc, _ref, _ref1;
+      var PeerConnection, error, ex, pc, ref, ref1;
       try {
-        PeerConnection = (_ref = (_ref1 = window.RTCPeerConnection) != null ? _ref1 : window.mozRTCPeerConnection) != null ? _ref : window.webkitRTCPeerConnection;
+        PeerConnection = (ref = (ref1 = window.RTCPeerConnection) != null ? ref1 : window.mozRTCPeerConnection) != null ? ref : window.webkitRTCPeerConnection;
         pc = new PeerConnection(this.pcConfig, this.pcConstraints);
         pc.onicecandidate = (function(_this) {
           return function(evt) {
@@ -1715,8 +2481,8 @@
           };
         })(this);
         return pc;
-      } catch (_error) {
-        ex = _error;
+      } catch (error) {
+        ex = error;
         console.log('Failed to create PeerConnection, exception: ', ex);
         return null;
       }
@@ -1743,8 +2509,8 @@
         };
       })(this);
       dc.onerror = (function(_this) {
-        return function(error) {
-          return _this._handleDcError(error);
+        return function(err) {
+          return _this._handleDcError(err);
         };
       })(this);
       return dc.onmessage = (function(_this) {
@@ -1759,21 +2525,21 @@
       return this.emit('dcOpen');
     };
 
-    Rtc.prototype._handleDcClose = function(error) {
+    Rtc.prototype._handleDcClose = function() {
       console.log("The Data Channel is Closed");
       if (this.outgoingTransfer || this.incomingTransfer) {
         return this._handleDcError('DataChannel closed');
       }
     };
 
-    Rtc.prototype._handleDcError = function(error) {
-      var tr, _i, _len, _ref;
-      console.log("Data Channel Error:", error);
-      _ref = [this.outgoingTransfer, this.incomingTransfer];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        tr = _ref[_i];
+    Rtc.prototype._handleDcError = function(err) {
+      var i, len, ref, tr;
+      console.log("Data Channel Error:", err);
+      ref = [this.outgoingTransfer, this.incomingTransfer];
+      for (i = 0, len = ref.length; i < len; i++) {
+        tr = ref[i];
         if (tr) {
-          tr.err = error;
+          tr.err = err;
         }
         if (tr) {
           this.emit('transfer', tr);
@@ -1801,7 +2567,7 @@
         } else {
           info = JSON.parse(d);
           if (info) {
-            this.incomingTransfer = new bit6.Transfer(info, false);
+            this.incomingTransfer = new bit6.Transfer(false, info);
             return this.emit('transfer', this.incomingTransfer);
           } else {
             return console.log('Error: could not parse incoming transfer info:', d);
@@ -1811,15 +2577,18 @@
     };
 
     Rtc.prototype._handleIceCandidate = function(evt) {
-      var c, idx, _base;
+      var base, c, idx;
+      console.log('handleIceCandidate event: ', evt);
       if (evt.candidate != null) {
         c = evt.candidate;
         idx = c.sdpMLineIndex;
-        if ((_base = this.bufferedIceCandidates)[idx] == null) {
-          _base[idx] = [];
+        if ((base = this.bufferedIceCandidates)[idx] == null) {
+          base[idx] = [];
         }
         return this.bufferedIceCandidates[idx].push(c);
       } else {
+        console.log('End of candidates.');
+        console.log('BufferedCandidates', this.bufferedIceCandidates);
         this.bufferedIceCandidatesDone = true;
         return this._maybeSendOfferAnswer();
       }
@@ -1832,6 +2601,7 @@
         this.bufferedOfferAnswer = null;
         this.bufferedIceCandidates = [];
         this.bufferedIceCandidatesDone = false;
+        console.log('Send OfferAnswer:', offerAnswer);
         if (offerAnswer) {
           return this.emit('offerAnswer', offerAnswer);
         }
@@ -1847,7 +2617,7 @@
     };
 
     Rtc.prototype._mergeSdp = function(offerAnswer, candidatesByMlineIndex) {
-      var chunk, chunks, end, idx, sdp, start, _i, _len;
+      var chunk, chunks, end, i, idx, len, sdp, start;
       sdp = offerAnswer.sdp;
       chunks = [];
       start = 0;
@@ -1857,7 +2627,7 @@
       }
       chunks.push(sdp.substring(start));
       sdp = '';
-      for (idx = _i = 0, _len = chunks.length; _i < _len; idx = ++_i) {
+      for (idx = i = 0, len = chunks.length; i < len; idx = ++i) {
         chunk = chunks[idx];
         sdp += chunk;
         if (idx > 0 && (candidatesByMlineIndex[idx - 1] != null)) {
@@ -1869,25 +2639,32 @@
     };
 
     Rtc.prototype._iceCandidatesToSdp = function(arr) {
-      var c, t, _i, _len;
+      var c, i, len, t;
       t = '';
-      for (_i = 0, _len = arr.length; _i < _len; _i++) {
-        c = arr[_i];
+      for (i = 0, len = arr.length; i < len; i++) {
+        c = arr[i];
         t += 'a=' + c.candidate + '\r\n';
       }
       return t;
     };
 
     Rtc.prototype._handleRemoteStreamAdded = function(evt) {
-      var e, _ref;
+      var e, ref, ref1;
       this.remoteStream = evt.stream;
-      e = (_ref = this.options.remoteMediaEl) != null ? _ref : null;
+      e = (ref = this.options.remoteMediaEl) != null ? ref : null;
       if (!e) {
         if (this.options.video) {
           e = document.createElement('video');
           this.options.containerEl.appendChild(e);
         } else if (this.options.audio) {
           e = document.createElement('audio');
+          if ((typeof window !== "undefined" && window !== null ? window.webrtcDetectedType : void 0) === 'plugin') {
+            if (typeof document !== "undefined" && document !== null) {
+              if ((ref1 = document.body) != null) {
+                ref1.appendChild(e);
+              }
+            }
+          }
         }
         if (e) {
           e.setAttribute('class', 'remote');
@@ -1896,7 +2673,10 @@
       }
       this.remoteEl = e;
       if (e) {
-        return this.remoteEl = bit6.RtcMedia.attachMediaStream(e, evt.stream);
+        this.remoteEl = bit6.RtcMedia.attachMediaStream(e, evt.stream);
+      }
+      if (this.options.video) {
+        return this.emit('videos');
       }
     };
 
@@ -1965,20 +2745,20 @@
       this.dc.send(JSON.stringify(tr.info));
       data = tr.data;
       delay = 10;
-      chunk = 100;
+      chunk = 16384;
       sent = 0;
-      total = 100;
+      total = data.byteLength;
       intervalId = 0;
       return intervalId = setInterval((function(_this) {
         return function() {
-          var clear, end, _ref;
+          var clear, end, ref;
           clear = false;
           tr = _this.outgoingTransfer;
           if (!tr || tr.err) {
             clear = true;
           }
           if (!clear) {
-            if (((_ref = _this.dc) != null ? _ref.bufferedAmount : void 0) > chunk * 50) {
+            if (((ref = _this.dc) != null ? ref.bufferedAmount : void 0) > chunk * 50) {
               return;
             }
             end = sent + chunk;
@@ -2008,14 +2788,12 @@
 }).call(this);
 
 (function() {
-  var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __slice = [].slice;
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty,
+    slice = [].slice;
 
-  window.bit6 || (window.bit6 = {});
-
-  bit6.Session = (function(_super) {
-    __extends(Session, _super);
+  bit6.Session = (function(superClass) {
+    extend(Session, superClass);
 
     Session.prototype._sprops = ['authenticated', 'authInfo', 'config', 'device', 'identity', 'token', 'userid'];
 
@@ -2026,10 +2804,10 @@
     }
 
     Session.prototype._clear = function() {
-      var n, _i, _len, _ref;
-      _ref = this._sprops;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        n = _ref[_i];
+      var i, len, n, ref;
+      ref = this._sprops;
+      for (i = 0, len = ref.length; i < len; i++) {
+        n = ref[i];
         this[n] = null;
       }
       return this.authenticated = false;
@@ -2070,21 +2848,35 @@
       return this._auth('anonymous', {}, cb);
     };
 
+    Session.prototype.external = function(token, cb) {
+      return this._auth('external', {
+        token: token
+      }, cb);
+    };
+
     Session.prototype.oauth = function(provider, opts, cb) {
-      var redirectUrl, _ref, _ref1, _ref2;
-      redirectUrl = (_ref = opts.redirect_uri) != null ? _ref : opts.redirectUri;
-      if (redirectUrl == null) {
-        opts.redirect_uri = typeof window !== "undefined" && window !== null ? (_ref1 = window.location) != null ? (_ref2 = _ref1.href) != null ? _ref2.split('?')[0] : void 0 : void 0 : void 0;
-      }
+      this._ensureOauthRedirectUri(opts);
       return this.getAuthInfo((function(_this) {
         return function(err, info) {
           if (err) {
             return cb(err);
           }
-          opts.client_id = _this.authInfo[provider].client_id;
           return _this._auth(provider, opts, cb);
         };
       })(this));
+    };
+
+    Session.prototype.oauth1_redirect = function(provider, opts, cb) {
+      this._ensureOauthRedirectUri(opts);
+      return this.api('/' + provider, 'POST', opts, cb);
+    };
+
+    Session.prototype._ensureOauthRedirectUri = function(opts) {
+      var redirectUrl, ref, ref1, ref2;
+      redirectUrl = (ref = opts.redirect_uri) != null ? ref : opts.redirectUri;
+      if (redirectUrl == null) {
+        return opts.redirect_uri = typeof window !== "undefined" && window !== null ? (ref1 = window.location) != null ? (ref2 = ref1.href) != null ? ref2.split('?')[0] : void 0 : void 0 : void 0;
+      }
     };
 
     Session.prototype.refresh = function(cb) {
@@ -2092,22 +2884,22 @@
     };
 
     Session.prototype.save = function() {
-      var n, x, _i, _len, _ref;
+      var i, len, n, ref, x;
       x = {};
-      _ref = this._sprops;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        n = _ref[_i];
+      ref = this._sprops;
+      for (i = 0, len = ref.length; i < len; i++) {
+        n = ref[i];
         x[n] = this[n];
       }
       return x;
     };
 
     Session.prototype.resume = function(x, cb) {
-      var n, _i, _len, _ref;
-      _ref = this._sprops;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        n = _ref[_i];
-        this[n] = x[n];
+      var i, len, n, ref, ref1;
+      ref = this._sprops;
+      for (i = 0, len = ref.length; i < len; i++) {
+        n = ref[i];
+        this[n] = (ref1 = x != null ? x[n] : void 0) != null ? ref1 : null;
       }
       return this.refresh(cb);
     };
@@ -2123,7 +2915,13 @@
       data.embed = 'config';
       return this.api('/' + type, 'POST', data, (function(_this) {
         return function(err, result) {
+          var i, k, len, ref;
           if (err) {
+            ref = ['config', 'identity', 'token', 'userid'];
+            for (i = 0, len = ref.length; i < len; i++) {
+              k = ref[i];
+              delete _this[k];
+            }
             return cb(err);
           }
           return _this._authDone(result, cb);
@@ -2132,24 +2930,49 @@
     };
 
     Session.prototype._authDone = function(data, cb) {
-      var k, _i, _len, _ref, _ref1;
+      var apikey2, claims, claimsStr, error, ex, i, k, len, r, ref, ref1, ref2, uid, x;
       if (data.token == null) {
         return cb('Jwt token is missing');
       }
+      try {
+        r = data.token.split('.');
+        claimsStr = r != null ? r[1] : void 0;
+        if (claimsStr != null) {
+          claims = JSON.parse(bit6.Session.base64urlDecode(claimsStr));
+        }
+        console.log('Jwt claims', claims);
+      } catch (error) {
+        ex = error;
+        console.log('Error parsing Jwt claims', r[1]);
+      }
+      x = claims != null ? (ref = claims.sub) != null ? ref.split('@') : void 0 : void 0;
+      if ((x != null) && x.length === 2) {
+        uid = x[0], apikey2 = x[1];
+      }
+      if (!((uid != null) && (apikey2 != null))) {
+        return cb('Jwt token has invalid format');
+      }
       this.authenticated = true;
-      _ref = ['config', 'identity', 'token', 'userid'];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        k = _ref[_i];
-        this[k] = (_ref1 = data[k]) != null ? _ref1 : this[k];
+      ref1 = ['config', 'identity', 'token', 'userid'];
+      for (i = 0, len = ref1.length; i < len; i++) {
+        k = ref1[i];
+        this[k] = (ref2 = data[k]) != null ? ref2 : this[k];
       }
       this.client._onLogin(cb);
       return this.emit('auth');
     };
 
     Session.prototype.api = function() {
-      var cb, params, path, _i, _ref;
-      path = arguments[0], params = 3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : (_i = 1, []), cb = arguments[_i++];
-      return (_ref = this.client)._api.apply(_ref, ['/auth/1' + path].concat(__slice.call(params), [cb]));
+      var cb, i, params, path, ref;
+      path = arguments[0], params = 3 <= arguments.length ? slice.call(arguments, 1, i = arguments.length - 1) : (i = 1, []), cb = arguments[i++];
+      return (ref = this.client)._api.apply(ref, ['/auth/1' + path].concat(slice.call(params), [cb]));
+    };
+
+    Session.base64urlDecode = function(s) {
+      s += new Array(4 - ((s.length + 3) & 3)).join('=');
+      s = s.replace(/\-/g, '+').replace(/_/g, '/');
+      s = atob(s);
+      return s;
     };
 
     return Session;
@@ -2159,24 +2982,22 @@
 }).call(this);
 
 (function() {
-  window.bit6 || (window.bit6 = {});
-
   bit6.Transfer = (function() {
-    function Transfer(info, outgoing, data) {
-      var _ref;
-      this.info = info;
+    function Transfer(outgoing, info1, data) {
+      var ref;
       this.outgoing = outgoing;
-      this.data = data != null ? data : null;
+      this.info = info1;
       this.progress = 0;
-      this.total = (_ref = this.info.size) != null ? _ref : 0;
+      this.total = (ref = this.info.size) != null ? ref : 0;
       this.err = null;
+      this.data = data != null ? data : null;
       if (!this.outgoing) {
         this.buf = [];
       }
     }
 
     Transfer.prototype.pending = function() {
-      return this.outgoing && !this.err && this.progress === 0;
+      return this.outgoing && this.data && !this.err && this.progress === 0;
     };
 
     Transfer.prototype.completed = function() {
@@ -2190,6 +3011,26 @@
       return (this.progress * 100 / this.total).toFixed(2);
     };
 
+    Transfer.prototype._ensureSourceData = function(cb) {
+      if (this.data != null) {
+        return cb(null);
+      }
+      return bit6.Transfer.readFileAsArrayBuffer(this.info, (function(_this) {
+        return function(err, info2, data) {
+          if (err != null) {
+            _this.err = err;
+          }
+          if ((data != null) && (info2 != null)) {
+            _this.info = info2;
+          }
+          if (data != null) {
+            _this.data = data;
+          }
+          return cb(err);
+        };
+      })(this));
+    };
+
     Transfer.prototype._gotChunk = function(chunk) {
       this.buf.push(chunk);
       this.progress += chunk.byteLength;
@@ -2201,17 +3042,68 @@
     };
 
     Transfer.prototype._prepareReceivedData = function() {
-      var b, offset, tmp, _i, _len, _ref;
+      var b, j, len, offset, ref, tmp;
       tmp = new Uint8Array(this.progress);
       offset = 0;
-      _ref = this.buf;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        b = _ref[_i];
+      ref = this.buf;
+      for (j = 0, len = ref.length; j < len; j++) {
+        b = ref[j];
         tmp.set(new Uint8Array(b), offset);
         offset += b.byteLength;
       }
       this.buf = null;
       return this.data = tmp.buffer;
+    };
+
+    Transfer.readFileAsArrayBuffer = function(f, cb) {
+      var reader;
+      reader = new FileReader();
+      reader.onload = function(e) {
+        var data, info;
+        if (reader.readyState === FileReader.DONE) {
+          data = e.target.result;
+          console.log(f.name + ' - read ' + data.byteLength + 'b');
+          info = {
+            name: f.name,
+            type: f.type,
+            size: f.size
+          };
+          return cb(null, info, data);
+        }
+      };
+      reader.onerror = function(e) {
+        return cb(e);
+      };
+      reader.onabort = function(e) {
+        return cb(e);
+      };
+      return reader.readAsArrayBuffer(f);
+    };
+
+    Transfer.dataUrlToBlob = function(url) {
+      var ab, arr, contentType, i, j, marker, parts, raw, rawLength, ref;
+      marker = ';base64,';
+      raw = null;
+      contentType = null;
+      if (url.indexOf(marker) < 0) {
+        parts = url.split(',');
+        contentType = parts[0].split(':')[1];
+        raw = decodeURIComponent(parts[1]);
+      } else {
+        parts = url.split(marker);
+        contentType = parts[0].split(':')[1];
+        raw = atob(parts[1]);
+        rawLength = raw.length;
+        ab = new ArrayBuffer(rawLength);
+        arr = new Uint8Array(ab);
+        for (i = j = 0, ref = rawLength - 1; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+          arr[i] = raw.charCodeAt(i);
+        }
+        raw = ab;
+      }
+      return new Blob([raw], {
+        type: contentType
+      });
     };
 
     return Transfer;

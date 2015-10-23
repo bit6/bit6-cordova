@@ -9,19 +9,20 @@ exports.init = function(opts) {
     // Init DeviceId and Push support
     initPushService(b6);
     // Init native WebRTC component?
+    // Check for PeerConnection instead?
     var hasWebRTC = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || window.getUserMedia;
     if (!hasWebRTC) {
         // WebView does not support WebRTC, init a native substitute
-        b6.setRtcFactory(function() {
+        b6._createRtc = function() {
             return new bit6.Rtc2(phonertc);
-        });
-        b6.setRtcMediaFactory(function() {
+        };
+        b6._createRtcMedia = function() {
             return new bit6.RtcMedia2(phonertc);
-        });
+        };
     }
+
     return b6;
 };
-
 
 function initPushService(b6) {
     // Short name for the platform for Bit6
@@ -44,16 +45,16 @@ function initPushService(b6) {
 
     // DeviceId support
     if (device && device.platform && device.uuid) {
-        b6.setDeviceIdFactory(function() {
+        b6._createDeviceId = function() {
             return plat + '-' + device.uuid;
-        });
+        };
     }
 
     // Push support
 
     // Helper functions for success / error responses
     var errh = function(r) {
-        alert('Push Error: ' + r);
+        console.log('Push Error: ' + r);
     };
     var okh = function(r) {
         console.log('Push Success: ' + r);
@@ -65,7 +66,7 @@ function initPushService(b6) {
             id: b6.session.device,
             pushkey: pushkey,
             platform: plat,
-            sdkv: '0.9.0'
+            sdkv: bit6.Client.version
         };
         console.log('Send pushkey: ' + data.pushkey);
         console.log('Send device id: ' + data.id);
@@ -113,7 +114,7 @@ function initPushService(b6) {
                 console.log('GCM unknown event: ' + e.event)
                 break;
         }
-    };
+    }
 
     // Got notification from APN
     // Note that the function has to be in global scope!
@@ -130,7 +131,7 @@ function initPushService(b6) {
         }
         // Feed it into JS SDK
         b6._handlePushRtMessage(e);
-    };
+    }
 
 
     // Listen to the completion of the auth procedure.
@@ -138,7 +139,11 @@ function initPushService(b6) {
     b6.session.on('auth', function() {
         // When Bit6 auth is done, we should have Android GCM senderId
         if (plat == 'and') {
-            // TODO: check that all the values exist
+            // TODO: check that all the values exist, showing the alert for now
+            if (b6.session.config.gcm === undefined) {
+                alert("There will be errors as long as you don't enable GCM push notifications for this app.");
+            }
+
             var gcmSenderId = b6.session.config.gcm.senderId;
             console.log('GCM senderId=' + gcmSenderId);
             var opts = {

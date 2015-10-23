@@ -131,14 +131,15 @@
 
     dispatch_async(dispatch_get_main_queue(), ^(void) {
         // create session config from the JS params
+
         VideoConfig *videoConfig = [[VideoConfig alloc] init: config];
+
+        self.videoConfig = videoConfig; //Init self.videoConfig to request remote video.
 
         // make sure that it's not junk
         if (videoConfig.container.width == 0 || videoConfig.container.height == 0) {
             return;
         }
-
-        self.videoConfig = videoConfig;
 
         // add local video view
         if (self.videoConfig.local != nil) {
@@ -346,6 +347,7 @@
 
         self.videoSource = nil;
         self.videoCapturer = nil;
+        self.videoConfig = nil;
     }
 }
 

@@ -2,7 +2,7 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.bit6.sdk"
-    version="0.9.2">
+    version="0.9.5">
 
     <name>Bit6</name>
     <description>Add voice and video calling, text and media messaging to your app</description>
@@ -11,7 +11,6 @@
 
     <engines>
         <engine name="cordova-ios" version=">=3.0.0" />
-        <engine name="cordova-android" version="&lt;4.0.0" />
     </engines>
 
     <dependency id="com.phonegap.plugins.PushPlugin" url="https://github.com/Telerik-Verified-Plugins/PushNotification" />
