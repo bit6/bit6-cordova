@@ -351,6 +351,17 @@
     }
 }
 
+-(void) isApnsProduction: (CDVInvokedUrlCommand*)command
+{
+   BOOL apnsProduction = false;
+   if (![[NSBundle mainBundle] pathForResource:@"embedded" ofType:@"mobileprovision"]) {
+      apnsProduction = true;
+   }
+
+   CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:apnsProduction];
+   [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 @end
 
 @implementation VideoTrackViewPair

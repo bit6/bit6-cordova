@@ -1,6 +1,7 @@
 cordova.require("com.bit6.sdk.Bit6SDK");
-cordova.require("com.bit6.sdk.Bit6RtcAdapter");
-cordova.require("com.bit6.sdk.Bit6RtcMediaAdapter");
+cordova.require("com.bit6.sdk.MyRtc");
+cordova.require("com.bit6.sdk.MyCapture");
+cordova.require("com.bit6.sdk.MySurface");
 var phonertc = cordova.require("com.bit6.sdk.PhoneRTC");
 
 exports.init = function(opts) {
@@ -11,13 +12,24 @@ exports.init = function(opts) {
     // Init native WebRTC component?
     // Check for PeerConnection instead?
     var hasWebRTC = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || window.getUserMedia;
+    // WebView does not support WebRTC, init a native substitute
     if (!hasWebRTC) {
-        // WebView does not support WebRTC, init a native substitute
+        // Internal helper for showing/hiding OpenGL surface for native video views
+        var surface = new bit6.MySurface(phonertc);
+
         b6._createRtc = function() {
-            return new bit6.Rtc2(phonertc);
+            return new bit6.MyRtc(phonertc);
         };
-        b6._createRtcMedia = function() {
-            return new bit6.RtcMedia2(phonertc);
+        b6._createRtcCapture = function() {
+            return new bit6.MyCapture(phonertc);
+        };
+        b6._emitVideoEvent = function(v, d, op) {
+            // Default - emit 'video' event to manage DOM
+            // attachment
+            b6.emit('video', v, d, op);
+            // Pass it into Surface - it will get the container element
+            //console.log('ToSurface: ' + v + ' parent ' + v.parentNode);
+            surface.onVideo(v, d, op);
         };
     }
 
@@ -75,6 +87,19 @@ function initPushService(b6) {
             console.log('Dev update res=' + res);
         });
     };
+
+    var sendIOSPushkeyToServer = function(key) {
+        //For iOS adding prefix p_/d_ to the push token for Bit6 server to use correct APNS
+        phonertc.isApnsProduction(function(isApnsProduction) {
+            var pushkey = key;
+            if (plat == 'ios') {
+                pushkey = isApnsProduction ? 'p_' + key : 'd_' + key;
+            }
+
+            sendPushkeyToServer(pushkey);
+        });
+    };
+
 
     // Got notification from GCM
     // Note that the function has to be in global scope!
@@ -162,7 +187,7 @@ function initPushService(b6) {
                 ecb: 'onPushAPN'
             };
             console.log('Register APN', opts);
-            window.plugins.pushNotification.register(sendPushkeyToServer, errh, opts);
+            window.plugins.pushNotification.register(sendIOSPushkeyToServer, errh, opts);
         }
     });
 }

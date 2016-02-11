@@ -2,7 +2,7 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.bit6.sdk"
-    version="0.9.5">
+    version="0.9.6">
 
     <name>Bit6</name>
     <description>Add voice and video calling, text and media messaging to your app</description>
@@ -13,7 +13,7 @@
         <engine name="cordova-ios" version=">=3.0.0" />
     </engines>
 
-    <dependency id="com.phonegap.plugins.PushPlugin" url="https://github.com/Telerik-Verified-Plugins/PushNotification" />
+    <dependency id="com.phonegap.plugins.PushPlugin" url="https://github.com/Telerik-Verified-Plugins/PushNotification" /> 
 
     <js-module src="www/phonertc.js" name="PhoneRTC">
     </js-module>
@@ -22,10 +22,13 @@
     <js-module src="www/bit6.js" name="Bit6SDK">
     </js-module>
 
-    <js-module src="www/rtc2.js" name="Bit6RtcAdapter">
+    <js-module src="www/my-rtc.js" name="MyRtc">
     </js-module>
 
-    <js-module src="www/rtc-media2.js" name="Bit6RtcMediaAdapter">
+    <js-module src="www/my-capture.js" name="MyCapture">
+    </js-module>
+
+    <js-module src="www/my-surface.js" name="MySurface">
     </js-module>
 
     <js-module src="www/index-bit6.js" name="Bit6">
@@ -48,6 +51,7 @@
         <framework src="CoreVideo.framework" />
         <framework src="CoreMedia.framework" />
         <framework src="CoreAudio.framework" />
+         <framework src="VideoToolbox.framework" />
         <framework src="AVFoundation.framework" />
         <framework src="QuartzCore.framework" />
         <framework src="AssetsLibrary.framework" />

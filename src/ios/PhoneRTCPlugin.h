@@ -50,6 +50,9 @@
 -(void) addRemoteVideoTrack: (RTCVideoTrack*)videoTrack;
 -(void) removeRemoteVideoTrack: (RTCVideoTrack*)videoTrack;
 
+//Not a PhoneRTC specific thing. Used for iOS push notifications.
+- (void) isApnsProduction: (CDVInvokedUrlCommand*)command;
+
 @end
 
 

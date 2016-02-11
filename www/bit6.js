@@ -89,6 +89,10 @@
       this.uri = this.id;
     }
 
+    Conversation.prototype.isGroup = function() {
+      return this.id.indexOf('grp:') === 0;
+    };
+
     Conversation.prototype.getUnreadCount = function() {
       return this.unread;
     };
@@ -159,14 +163,14 @@
         console.log('ConvId is null', this);
         return null;
       }
-      return this.id.replace(':', '--').replace('.', '_-').replace('+', '-_');
+      return this.id.replace(/\:/g, '--').replace(/\./g, '_-').replace(/\+/g, '-_');
     };
 
     Conversation.fromDomId = function(t) {
       if (!t) {
         return t;
       }
-      return t.replace('--', ':').replace('_-', '.').replace('-_', '+');
+      return t.replace(/--/g, ':').replace(/_-/g, '.').replace(/-_/g, '+');
     };
 
     return Conversation;
@@ -183,20 +187,37 @@
     extend(Dialog, superClass);
 
     function Dialog(client, outgoing, other, options) {
-      var myaddr;
+      var base, i, j, len, len1, myaddr, ref, ref1, t;
       this.client = client;
       this.outgoing = outgoing;
       this.other = other;
       this.options = options;
       Dialog.__super__.constructor.apply(this, arguments);
       this.me = this.client.session.identity;
+      if (this.options == null) {
+        this.options = {};
+      }
+      ref = ['audio', 'video', 'screen', 'data'];
+      for (i = 0, len = ref.length; i < len; i++) {
+        t = ref[i];
+        if ((base = this.options)[t] == null) {
+          base[t] = false;
+        }
+      }
+      if (this.other.indexOf('pstn:') !== 0 && this.other.indexOf('grp:') !== 0) {
+        this.options.data = true;
+      }
+      this.remoteOptions = {};
+      ref1 = ['audio', 'video'];
+      for (j = 0, len1 = ref1.length; j < len1; j++) {
+        t = ref1[j];
+        this.remoteOptions[t] = this.options[t] && !this.outgoing;
+      }
       this.params = {
-        useVideo: this.options.video,
-        useStereo: false,
-        tag: 'webcam',
         callID: null
       };
       myaddr = 'uid:' + this.client.session.userid + '@' + this.client.apikey;
+      this.renegotiating = false;
       if (this.outgoing) {
         this.state = 'req';
         this.params.destination_number = this.other + '@' + this.client.apikey;
@@ -212,48 +233,62 @@
     }
 
     Dialog.prototype.connect = function(opts) {
-      var i, k, len, ref, ref1;
+      var i, len, newv, oldv, ref, t;
       if (opts == null) {
         opts = {};
       }
-      if (!this.options.audio && !this.options.video) {
-        this._onMediaReady();
-        return true;
-      }
-      if (this.options.video) {
-        if (!(opts.containerEl || (opts.localMediaEl && opts.remoteMediaEl))) {
-          this.emit('error', 'Need container or specific video elements');
-          return this.hangup();
-        }
-      }
-      ref = ['containerEl', 'localMediaEl', 'remoteMediaEl'];
+      ref = ['audio', 'video', 'screen'];
       for (i = 0, len = ref.length; i < len; i++) {
-        k = ref[i];
-        this.options[k] = (ref1 = opts[k]) != null ? ref1 : null;
+        t = ref[i];
+        if (opts[t] == null) {
+          continue;
+        }
+        newv = opts[t];
+        oldv = this.options[t];
+        if (oldv === newv) {
+          continue;
+        }
+        this.options[t] = newv;
       }
-      console.log('Dialog - calling ensure media', this);
-      this.client._ensureRtcMedia(this.options, 1, (function(_this) {
-        return function(ok) {
-          console.log('Dialog - media available: ok=', ok, 'd=', _this);
-          if (!ok) {
+      this.client._ensureRtcCapture(this.options, (function(_this) {
+        return function(err) {
+          if (err != null) {
             _this.emit('error', 'Unable to start media');
             return _this.hangup();
           }
-          _this._onMediaReady();
-          if (_this.options.video) {
-            return _this.emit('videos');
-          }
+          return _this._onMediaReady();
         };
       })(this));
-      return true;
+      return this;
+    };
+
+    Dialog.prototype.hasVideoStreams = function() {
+      return this.options.video || this.remoteOptions.video;
     };
 
     Dialog.prototype._onMediaReady = function() {
-      var iceServers;
-      if (!this.outgoing) {
-        this._sendAcceptRejectIncomingCall(true);
+      var msg;
+      if (!this.renegotiating) {
+        if (!this.outgoing) {
+          this._sendAcceptRejectIncomingCall(true);
+        }
+        this.emit('progress');
       }
-      this.emit('progress');
+      if (this.rtc == null) {
+        this._createRtc();
+      }
+      this.rtc.update(this.client.capture, this.options, this.remoteOptions);
+      if (this.renegotiating && !this.outgoing) {
+        msg = {
+          audio: this.options.audio,
+          video: this.options.video
+        };
+        return this.sendJson('reneg2', msg);
+      }
+    };
+
+    Dialog.prototype._createRtc = function() {
+      var iceServers;
       this.rtc = this.client._createRtc();
       this.rtc.on('offerAnswer', (function(_this) {
         return function(offerAnswer) {
@@ -264,9 +299,9 @@
           });
         };
       })(this));
-      this.rtc.on('videos', (function(_this) {
-        return function() {
-          return _this.emit('videos');
+      this.rtc.on('video', (function(_this) {
+        return function(v, op) {
+          return _this.client._emitVideoEvent(v, _this, op);
         };
       })(this));
       this.rtc.on('dcOpen', (function(_this) {
@@ -276,7 +311,29 @@
       })(this));
       this.rtc.on('transfer', (function(_this) {
         return function(tr) {
-          _this.emit('transfer', tr);
+          var n, o;
+          if (!tr.outgoing) {
+            n = tr.info.name;
+          }
+          if ('offer2' === n || 'answer2' === n) {
+            if (tr.completed()) {
+              o = tr.json();
+              _this._gotRemoteOfferAnswer(o.type, o);
+            }
+          } else if ('reneg2' === n) {
+            if (tr.completed()) {
+              o = tr.json();
+              if (o.audio != null) {
+                _this.remoteOptions.audio = o.audio;
+              }
+              if (o.video != null) {
+                _this.remoteOptions.video = o.video;
+              }
+              _this.connect();
+            }
+          } else {
+            _this.emit('transfer', tr);
+          }
           if (tr.err) {
 
           } else if (tr.completed() && tr.outgoing) {
@@ -285,8 +342,7 @@
         };
       })(this));
       iceServers = this.client.session.config.rtc.iceServers;
-      this.rtc.init(this.client.media, this.outgoing, iceServers, this.options);
-      return this.rtc.start();
+      return this.rtc.init(this.outgoing, iceServers);
     };
 
     Dialog.prototype._startNextPendingTransfer = function() {
@@ -321,15 +377,23 @@
       })(this));
     };
 
+    Dialog.prototype.sendJson = function(name, o) {
+      var tr;
+      tr = new bit6.Transfer(true, {
+        name: name
+      });
+      tr.json(o);
+      this.transfers.push(tr);
+      if (tr.data != null) {
+        return this.rtc.startOutgoingTransfer(tr);
+      }
+    };
+
     Dialog.prototype.hangup = function() {
       if (this.rtc) {
         this.rtc.stop();
         this.rtc = null;
-        this.client._ensureRtcMedia(null, -1);
         this._sendHangupCall();
-        if (this.options.video) {
-          this.emit('videos');
-        }
       } else if (!this.outgoing) {
         this._sendAcceptRejectIncomingCall(false);
       }
@@ -340,14 +404,22 @@
       var msg, ref, ref1;
       msg = offerAnswer;
       if (msg.type === 'offer') {
-        this.state = 'sent-offer';
-        msg.dialogParams = this.params;
-        return (ref = this.client.rpc) != null ? ref.call('verto.invite', msg, cb) : void 0;
+        if (this.renegotiating) {
+          return this.sendJson('offer2', msg);
+        } else {
+          this.state = 'sent-offer';
+          msg.dialogParams = this.params;
+          return (ref = this.client.rpc) != null ? ref.call('verto.invite', msg, cb) : void 0;
+        }
       } else if (msg.type === 'answer') {
-        this.state = 'sent-answer';
-        this.params.wantVideo = this.options.video;
-        msg.dialogParams = this.params;
-        return (ref1 = this.client.rpc) != null ? ref1.call('verto.answer', msg, cb) : void 0;
+        if (this.renegotiating) {
+          return this.sendJson('answer2', msg);
+        } else {
+          this.state = 'sent-answer';
+          msg.dialogParams = this.params;
+          this.renegotiating = true;
+          return (ref1 = this.client.rpc) != null ? ref1.call('verto.answer', msg, cb) : void 0;
+        }
       }
     };
 
@@ -386,8 +458,11 @@
     Dialog.prototype._gotRemoteOfferAnswer = function(type, offerAnswer) {
       this.state = 'got-' + type;
       offerAnswer.type = type;
+      if (type === 'answer') {
+        this.renegotiating = true;
+      }
       if (this.rtc != null) {
-        return this.rtc.gotRemoteOfferAnswer(offerAnswer);
+        return this.rtc.gotRemoteOfferAnswer(offerAnswer, this.client.capture);
       } else {
         return console.log('Error: RTC not inited');
       }
@@ -398,10 +473,6 @@
       if (this.rtc != null) {
         this.rtc.stop();
         this.rtc = null;
-        this.client._ensureRtcMedia(null, -1);
-        if (this.options.video) {
-          this.emit('videos');
-        }
         return this.emit('end');
       }
     };
@@ -422,18 +493,14 @@
       this.updated = 0;
     }
 
-    Group.prototype.update = function(o) {
+    Group.prototype.update = function(o, forceUpdate) {
       var k, v;
-      if (o.updated == null) {
-        return false;
-      }
-      if (this.updated === o.updated) {
-        if (JSON.stringify(this.meta) === JSON.stringify(o != null ? o.meta : void 0)) {
-          if (JSON.stringify(this.permissions) === JSON.stringify(o != null ? o.permissions : void 0)) {
-            if (JSON.stringify(this.members) === JSON.stringify(o != null ? o.members : void 0)) {
-              return false;
-            }
-          }
+      if (!forceUpdate) {
+        if (o.updated == null) {
+          return false;
+        }
+        if (this.updated === o.updated) {
+          return false;
         }
       }
       for (k in o) {
@@ -454,6 +521,22 @@
         }
       }
       return false;
+    };
+
+    Group.prototype.getMember = function(ident) {
+      var i, len, m, ref;
+      ref = this.members;
+      for (i = 0, len = ref.length; i < len; i++) {
+        m = ref[i];
+        if (m.id === ident) {
+          return m;
+        }
+      }
+      return null;
+    };
+
+    Group.prototype.getConversationId = function() {
+      return 'grp:' + this.id;
     };
 
     return Group;
@@ -496,7 +579,9 @@
             return _this.queue = [];
           } else {
             return _this.call('login', {}, function(err, result) {
-              return console.log('rpc login err=', err, 'result=', result);
+              if (err) {
+                return console.log('rpc login err=', err, 'result=', result);
+              }
             });
           }
         };
@@ -535,8 +620,8 @@
             }
           } catch (error) {
             ex = error;
-            console.log('Exception parsing JSON response ', ex);
-            return console.log('  -- RAW {{{', e.data, '}}}');
+            console.log('Exception parsing JSON response ' + ex);
+            return console.log('  -- RAW {{{' + e.data + '}}}');
           }
         };
       })(this);
@@ -663,7 +748,7 @@
       this.groups = {};
       this.presence = {};
       this.lastTypingSent = 0;
-      this.media = null;
+      this.capture = null;
       return this.dialogs = [];
     };
 
@@ -671,13 +756,6 @@
       this._connectRt();
       return this._loadMe((function(_this) {
         return function(err) {
-          var g, id, ref;
-          ref = _this.groups;
-          for (id in ref) {
-            g = ref[id];
-            g.updated = 0;
-            _this._loadGroupWithMembers(id);
-          }
           return cb(null);
         };
       })(this));
@@ -703,7 +781,6 @@
           if (err) {
             return cb(err);
           }
-          console.log('LoadMe got', result, headers);
           _this.lastSince = (ref = headers != null ? headers.etag : void 0) != null ? ref : 0;
           ref1 = ['devices', 'identities', 'data', 'profile'];
           for (i = 0, len = ref1.length; i < len; i++) {
@@ -713,7 +790,7 @@
             }
           }
           if (result.groups != null) {
-            _this._processGroupInfos(result.groups);
+            _this._processGroupMemberships(result.groups);
           }
           _this._processMessages(result.messages);
           return cb();
@@ -787,7 +864,7 @@
       other = encodeURIComponent(conv.id);
       return this.api('/me/messages?other=' + other, 'DELETE', (function(_this) {
         return function(err, result) {
-          var i, len, m, msgs;
+          var i, len, m, msgs, op;
           if (err) {
             return typeof cb === "function" ? cb(err) : void 0;
           }
@@ -797,9 +874,13 @@
             m.deleted = Date.now();
             _this._processMessage(m, true);
           }
-          delete _this.conversations[conv.id];
-          conv.deleted = Date.now();
-          _this.emit('conversation', conv, -1);
+          op = 0;
+          if (!conv.isGroup()) {
+            op = -1;
+            delete _this.conversations[conv.id];
+            conv.deleted = Date.now();
+          }
+          _this.emit('conversation', conv, op);
           return typeof cb === "function" ? cb(null) : void 0;
         };
       })(this));
@@ -818,7 +899,6 @@
           continue;
         }
         m.status(bit6.Message.READ);
-        console.log('Msg to be marked: ', m);
         this._processMessage(m);
         num++;
       }
@@ -829,7 +909,9 @@
       this.api('/me/messages?other=' + other, 'PUT', {
         status: 'read'
       }, function(err, result) {
-        return console.log('markAsRead result=', result);
+        if (err) {
+          return console.log('markAsRead result=', result, 'err=', err);
+        }
       });
       return num;
     };
@@ -858,7 +940,6 @@
             _this._failOutgoingMessage(m);
             return typeof cb === "function" ? cb(err) : void 0;
           } else {
-            console.log('Msg after POST', o);
             _this._processMessage(o);
             tmp = {
               id: tmpId,
@@ -876,13 +957,10 @@
         return false;
       }
       m.status(bit6.Message.READ);
-      console.log('Msg to be marked: ', m);
       this._processMessage(m);
       this.api('/me/messages/' + m.id, 'PUT', {
         status: 'read'
-      }, function(err, result) {
-        return console.log('markAsRead result=', result);
-      });
+      }, function(err, result) {});
       return true;
     };
 
@@ -995,87 +1073,81 @@
             if (err) {
               return cb(err);
             }
-            return _this._loadGroupWithMembers(o.id, function(err) {
-              if (err) {
-                return cb(err);
-              }
-              return cb(null, _this.getGroup(o.id));
-            });
+            return cb(null, _this.getGroup(o.id));
           });
         };
       })(this));
     };
 
-    Client.prototype.joinGroup = function(id, role, cb) {
-      var g, memberInfo, ref;
-      g = this.getGroup(id);
-      if ((g != null ? (ref = g.me) != null ? ref.role : void 0 : void 0) === role) {
-        return cb(null, g);
+    Client.prototype.joinGroup = function(g, role, cb) {
+      return this.inviteGroupMember(g, 'me', role, cb);
+    };
+
+    Client.prototype.leaveGroup = function(g, cb) {
+      return this.kickGroupMember(g, 'me', cb);
+    };
+
+    Client.prototype.inviteGroupMember = function(g, ident, role, cb) {
+      var gid, memberInfo;
+      gid = g.id != null ? g.id : g;
+      if (ident === 'me') {
+        ident = this.session.identity;
       }
       memberInfo = {
-        id: this.session.identity,
+        id: ident,
         role: role
       };
-      return this.api('/groups/' + id + '/members', 'POST', memberInfo, (function(_this) {
+      return this.api('/groups/' + g.id + '/members', 'POST', memberInfo, (function(_this) {
         return function(err, member) {
           if (err) {
             return cb(err);
           }
-          console.log('Became group member grpId', id);
           return _this._loadMe(function(err) {
             if (err) {
               return cb(err);
             }
-            return _this._loadGroupWithMembers(id, function(err) {
-              if (err) {
-                return cb(err);
-              }
-              return cb(null, _this.getGroup(id));
-            });
+            return cb(null);
           });
         };
       })(this));
     };
 
-    Client.prototype.leaveGroup = function(id, cb) {
-      var g;
-      g = this.getGroup(id);
+    Client.prototype.kickGroupMember = function(g, m, cb) {
+      if (g.id == null) {
+        g = this.getGroup(g);
+      }
       if (g == null) {
         return cb(null);
       }
-      delete this.groups[id];
-      this.emit('group', g, -1);
-      return this.api('/groups/' + id + '/members/me', 'DELETE', (function(_this) {
-        return function(err, member) {
+      if (m === 'me') {
+        m = g.me.identity;
+      }
+      if (!m.id) {
+        m = g.getMember(m);
+      }
+      if (m == null) {
+        return cb(null);
+      }
+      return this.api('/groups/' + g.id + '/members/' + m.id, 'DELETE', (function(_this) {
+        return function(err) {
           if (err) {
             return cb(err);
           }
-          console.log('Left group', id);
-          return cb(null);
+          return _this._loadMe(function(err) {
+            if (err) {
+              return cb(err);
+            }
+            return cb(null);
+          });
         };
       })(this));
     };
 
-    Client.prototype._loadGroupWithMembers = function(id, cb) {
-      return this.api('/groups/' + id, {
-        embed: 'members'
-      }, (function(_this) {
-        return function(err, result) {
-          console.log('Loaded group', id, 'with members: ', result, err);
-          if (result) {
-            _this._processGroupDeltas(result);
-          }
-          if (cb != null) {
-            return cb(err, result);
-          }
-        };
-      })(this));
-    };
-
-    Client.prototype._processGroupInfos = function(infos) {
-      var g, i, id, info, len, me, o, op, ref, ref1, results, tmp;
+    Client.prototype._processGroupMemberships = function(infos) {
+      var g, groupsToSync, i, id, info, isUpdated, j, len, len1, me, o, op, ref, ref1, results, tmp;
       tmp = this.groups;
       this.groups = {};
+      groupsToSync = [];
       for (i = 0, len = infos.length; i < len; i++) {
         info = infos[i];
         me = {
@@ -1089,35 +1161,91 @@
         op = 0;
         g = (ref1 = tmp[o.id]) != null ? ref1 : null;
         if (g == null) {
-          g = new bit6.Group(o.id);
           op = 1;
+          g = new bit6.Group(o.id);
         } else {
           delete tmp[o.id];
         }
         this.groups[g.id] = g;
-        if (g.update(o)) {
+        isUpdated = g.update(o);
+        if (isUpdated) {
           this.emit('group', g, op);
         }
+        this._ensureConversationForGroup(g, isUpdated);
+        if (isUpdated && me.role !== 'left') {
+          groupsToSync.push(g.id);
+        }
       }
-      results = [];
       for (id in tmp) {
         g = tmp[id];
-        results.push(this.emit('group', g, -1));
+        this.emit('group', g, -1);
+      }
+      results = [];
+      for (j = 0, len1 = groupsToSync.length; j < len1; j++) {
+        id = groupsToSync[j];
+        results.push(this._loadGroupWithMembers(id, false));
       }
       return results;
     };
 
-    Client.prototype._processGroupDeltas = function(o) {
-      var g, op;
-      op = 0;
-      g = this.groups[o.id];
+    Client.prototype._loadGroupWithMembers = function(id, reloadMembshipsOnFail, cb) {
+      return this.api('/groups/' + id, {
+        embed: 'members'
+      }, (function(_this) {
+        return function(err, result) {
+          _this._processGroup(id, result);
+          if (err && reloadMembshipsOnFail) {
+            return _this._loadMe(function(err) {
+              return typeof cb === "function" ? cb(err) : void 0;
+            });
+          } else {
+            return typeof cb === "function" ? cb(err, result) : void 0;
+          }
+        };
+      })(this));
+    };
+
+    Client.prototype._processGroup = function(id, o) {
+      var g, i, len, m, op, ref, ref1, ref2;
+      g = this.groups[id];
       if (g == null) {
-        g = new bit6.Group(o.id);
-        op = 1;
-        this.groups[g.id] = g;
+        console.log('syncGroup - could not find Group in local DB', id, 'data=', o);
+        return;
       }
-      if (g.update(o)) {
-        return this.emit('group', g, op);
+      op = 0;
+      if (o == null) {
+        if ((ref = g.me) != null) {
+          ref.role = 'left';
+        }
+      } else {
+        g.update(o, true);
+      }
+      if ((ref1 = g.me) != null ? ref1.identity : void 0) {
+        ref2 = g.members;
+        for (i = 0, len = ref2.length; i < len; i++) {
+          m = ref2[i];
+          if (m.id === g.me.identity) {
+            g.me.role = m.role;
+            break;
+          }
+        }
+      }
+      this._ensureConversationForGroup(g, op >= 0);
+      return this.emit('group', g, op);
+    };
+
+    Client.prototype._ensureConversationForGroup = function(g, isGroupUpdated) {
+      var conv, convId, op;
+      op = 0;
+      convId = g.getConversationId();
+      conv = this.conversations[convId];
+      if (!conv) {
+        this.conversations[convId] = conv = new bit6.Conversation(convId);
+        conv.updated = g.updated;
+        op = 1;
+      }
+      if (op || isGroupUpdated) {
+        return this.emit('conversation', conv, op);
       }
     };
 
@@ -1147,8 +1275,8 @@
         msg.data = data;
       }
       m = {
-        'to': to,
-        'body': JSON.stringify(msg)
+        to: to,
+        body: JSON.stringify(msg)
       };
       if ((ref = this.rpc) != null) {
         ref.call('verto.info', {
@@ -1160,8 +1288,16 @@
       return true;
     };
 
-    Client.prototype.startCall = function(other, opts) {
-      return this._createDialog(true, other, opts);
+    Client.prototype.startCall = function(to, opts) {
+      return this._createDialog(true, to, opts);
+    };
+
+    Client.prototype.startPhoneCall = function(phone) {
+      var to;
+      to = 'pstn:' + phone;
+      return this.startCall(to, {
+        audio: true
+      });
     };
 
     Client.prototype.findDialogByCallID = function(callID) {
@@ -1200,35 +1336,40 @@
       return null;
     };
 
-    Client.prototype.deleteDialog = function(d) {
-      var c, i, idx, len, ref;
+    Client.prototype._deleteDialog = function(d) {
+      var c, i, idx, len, ref, ref1;
       ref = this.dialogs;
       for (idx = i = 0, len = ref.length; i < len; idx = ++i) {
         c = ref[idx];
         if (c === d) {
           this.dialogs.splice(idx, 1);
-          return;
+          break;
         }
+      }
+      if (this.dialogs.length === 0) {
+        if ((ref1 = this.capture) != null) {
+          ref1.stop();
+        }
+        return this.capture = null;
       }
     };
 
     Client.prototype._createDialog = function(outgoing, other, opts) {
       var c;
       c = this.findDialogByOther(other);
-      if (c != null) {
-        return null;
+      if (c) {
+        return c;
       }
       c = new bit6.Dialog(this, outgoing, other, opts);
       this.dialogs.push(c);
       c.on('error', (function(_this) {
-        return function() {
-          return console.log('Dialog error: ', c);
+        return function(msg) {
+          return console.log('Dialog error: ', c, msg);
         };
       })(this));
       c.on('end', (function(_this) {
         return function() {
-          console.log('Dialog end in Main: ', c);
-          return _this.deleteDialog(c);
+          return _this._deleteDialog(c);
         };
       })(this));
       return c;
@@ -1242,36 +1383,30 @@
       return new bit6.Rtc();
     };
 
-    Client.prototype._createRtcMedia = function() {
-      return new bit6.RtcMedia();
+    Client.prototype._createRtcCapture = function() {
+      return new bit6.RtcCapture();
     };
 
-    Client.prototype._ensureRtcMedia = function(opts, delta, cb) {
-      if (!this.media && delta > 0) {
-        this.media = this._createRtcMedia();
-        this.media.init(opts);
-        this.media.start();
+    Client.prototype._ensureRtcCapture = function(opts, cb) {
+      if (!this.capture) {
+        this.capture = this._createRtcCapture();
+        this.capture.on('video', (function(_this) {
+          return function(v, op) {
+            return _this._emitVideoEvent(v, null, op);
+          };
+        })(this));
       }
-      if (this.media) {
-        this.media.counter += delta;
-        if (this.media.counter > 0) {
-          if (cb != null) {
-            return this.media.check(cb);
-          }
-        } else {
-          this.media.stop();
-          this.media = null;
-          if (cb != null) {
-            return cb(true);
-          }
-        }
-      }
+      return this.capture.request(opts, cb);
+    };
+
+    Client.prototype._emitVideoEvent = function(v, d, op) {
+      return this.emit('video', v, d, op);
     };
 
     Client.prototype.getNameFromIdentity = function(ident) {
-      var g, r, ref, ref1, ref2, t;
+      var g, m, r, ref, ref1, t;
       t = ident;
-      if (t == null) {
+      if (ident == null) {
         console.log('getNameFromId null', ident);
         return null;
       }
@@ -1281,17 +1416,45 @@
       }
       switch (r[0]) {
         case 'usr':
+        case 'pstn':
           t = r[1];
           break;
         case 'grp':
           g = this.getGroup(ident);
-          t = (ref = g != null ? (ref1 = g.group) != null ? (ref2 = ref1.meta) != null ? ref2.title : void 0 : void 0 : void 0) != null ? ref : t;
+          if (!g) {
+            console.log('Group not found: ' + ident);
+            t = 'Group not found';
+          } else {
+            t = (ref = (ref1 = g.meta) != null ? ref1.title : void 0) != null ? ref : null;
+            if (!t && g.members.length) {
+              r = (function() {
+                var i, len, ref2, results;
+                ref2 = g.members;
+                results = [];
+                for (i = 0, len = ref2.length; i < len; i++) {
+                  m = ref2[i];
+                  if (m.role === 'user' || m.role === 'admin') {
+                    results.push(this.getNameFromIdentity(m.id));
+                  }
+                }
+                return results;
+              }).call(this);
+              if (r.length < 4) {
+                t = r.join(', ');
+              } else {
+                t = r[0] + ', ' + r[1] + ' + ' + (r.length - 2) + ' more';
+              }
+            }
+            if (t == null) {
+              t = 'Untitled Group';
+            }
+          }
       }
       return t;
     };
 
     Client.prototype._handleRtMessage = function(m) {
-      var g, gid, i, len, o, old, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8;
+      var g, gid, i, len, old, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, results;
       switch (m.type) {
         case 'push':
           return this._handlePushRtMessage(m.data);
@@ -1301,13 +1464,12 @@
           }
           if (((ref1 = m.data) != null ? (ref2 = ref1.groups) != null ? ref2.length : void 0 : void 0) > 0) {
             ref3 = m.data.groups;
+            results = [];
             for (i = 0, len = ref3.length; i < len; i++) {
-              o = ref3[i];
-              this._loadGroupWithMembers(o.id);
+              g = ref3[i];
+              results.push(this._loadGroupWithMembers(g.id, true));
             }
-            return this._loadMe(function(err) {
-              return console.log('LoadMe on Group update done', err);
-            });
+            return results;
           }
           break;
         case 'presence':
@@ -1370,7 +1532,9 @@
         case 0x0300:
         case 0x0400:
           return this._loadMe(function(err) {
-            return console.log('LoadMsgDeltas on push done', err);
+            if (err) {
+              return console.log('LoadMsgDeltas on push done', err);
+            }
           });
         default:
           return console.log('Unknown push: ', d);
@@ -1389,8 +1553,8 @@
               this._handleRtMessage(x);
             } catch (error) {
               ex = error;
-              console.log('Exception parsing JSON response verto.info', ex);
-              console.log('  -- RAW {{{', params.msg.body, '}}}');
+              console.log('Exception parsing JSON response verto.info ' + ex);
+              console.log('  -- RAW {{{' + params.msg.body + '}}}');
             }
           }
           break;
@@ -1872,7 +2036,6 @@
     };
 
     Outgoing.prototype.send = function(cb) {
-      console.log('Sending: ', this);
       if (!this.hasAttachment()) {
         this.client._processMessage(this);
         return this.client._sendMessagePost(this, cb);
@@ -1881,16 +2044,15 @@
         return function(err) {
           _this.client._processMessage(_this);
           if (err != null) {
-            return cb(err);
+            return typeof cb === "function" ? cb(err) : void 0;
           }
           return _this._getUploadParams(function(err, params) {
-            console.log('Got upload params', params, 'err=', err);
             if (err != null) {
-              return cb(err);
+              return typeof cb === "function" ? cb(err) : void 0;
             }
             return _this._uploadAttachmentAndThumbnail(params, function(err) {
               if (err != null) {
-                return cb(err);
+                return typeof cb === "function" ? cb(err) : void 0;
               }
               return _this.client._sendMessagePost(_this, cb);
             });
@@ -1915,7 +2077,9 @@
     Outgoing.prototype._loadAttachmentAndThumbnail = function(cb) {
       return bit6.Transfer.readFileAsArrayBuffer(this.attachFile, (function(_this) {
         return function(err, info, data) {
-          console.log('Read file ', info, 'err=', err);
+          if (err) {
+            console.log('Read file ', info, 'err=', err);
+          }
           if (err != null) {
             return cb(err);
           }
@@ -1931,7 +2095,9 @@
       x = params.uploads.attach;
       return bit6.Outgoing.uploadFile(x.endpoint, x.params, f, (function(_this) {
         return function(err) {
-          console.log('Main attach uploaded err=', err);
+          if (err) {
+            console.log('Main attach uploaded err=', err);
+          }
           if (err != null) {
             return cb(err);
           }
@@ -1941,7 +2107,9 @@
           }
           x = params.uploads.thumb;
           return bit6.Outgoing.uploadFile(x.endpoint, x.params, _this.thumbBlob, function(err) {
-            console.log('Thumb uploaded err=', err);
+            if (err) {
+              console.log('Thumb uploaded err=', err);
+            }
             if (err != null) {
               return cb(err);
             }
@@ -2011,7 +2179,9 @@
       (window.URL || window.webkitURL).revokeObjectURL(media.src);
       return bit6.Outgoing.createThumbnail(media, (function(_this) {
         return function(err, thumbDataUrl) {
-          console.log('Thumb created err=', err);
+          if (err) {
+            console.log('Thumb created err=', err);
+          }
           if (err != null) {
             return cb(err);
           }
@@ -2034,7 +2204,6 @@
       maxHeight = 320;
       tw = (ref = media != null ? media.videoWidth : void 0) != null ? ref : media.width;
       th = (ref1 = media != null ? media.videoHeight : void 0) != null ? ref1 : media.height;
-      console.log('Orig media loaded. dimen=', tw, th);
       if (tw > th) {
         if (tw > maxWidth) {
           th *= maxWidth / tw;
@@ -2071,7 +2240,6 @@
       xhr = new XMLHttpRequest();
       xhr.open('POST', endpoint, true);
       xhr.onload = function(e) {
-        console.log('xhr complete status=' + xhr.status + ' ' + xhr.statusText);
         if (xhr.status >= 200 && xhr.status < 300) {
           return cb(null);
         } else {
@@ -2231,130 +2399,261 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  bit6.RtcMedia = (function(superClass) {
-    extend(RtcMedia, superClass);
+  bit6.RtcCapture = (function(superClass) {
+    extend(RtcCapture, superClass);
 
-    function RtcMedia() {
-      return RtcMedia.__super__.constructor.apply(this, arguments);
-    }
-
-    RtcMedia.prototype.init = function(options) {
-      this.options = options;
-      this.preparing = true;
-      this.ok = true;
+    function RtcCapture() {
+      RtcCapture.__super__.constructor.apply(this, arguments);
+      this.options = {
+        audio: false,
+        video: false,
+        screen: false
+      };
+      this.preparingScreen = false;
+      this.preparingMedia = false;
+      this.errorScreen = null;
+      this.errorMedia = null;
       this.cbs = [];
-      return this.counter = 0;
-    };
-
-    RtcMedia.prototype.start = function() {
       this.localStream = null;
       this.localEl = null;
-      console.log('RtcMedia start', this.options);
-      return RtcMedia.getUserMedia(this.options, (function(_this) {
-        return function(stream) {
-          _this._handleUserMedia(stream);
-          return _this._done(true);
-        };
-      })(this), (function(_this) {
+      this.localScreenStream = null;
+    }
+
+    RtcCapture.prototype.getStreams = function(opts) {
+      var arr;
+      arr = [];
+      if (opts.audio || opts.video) {
+        if (this.localStream) {
+          arr.push(this.localStream);
+        }
+      }
+      if (opts.screen) {
+        if (this.localScreenStream) {
+          arr.push(this.localScreenStream);
+        }
+      }
+      return arr;
+    };
+
+    RtcCapture.prototype.request = function(opts, cb) {
+      return this._prepareScreenSharing(opts != null ? opts.screen : void 0, (function(_this) {
         return function(err) {
-          console.log('getUserMedia error: ', err);
-          return _this._done(false);
+          var newAudio, newVideo, ref, ref1;
+          if (err) {
+            console.log('RtcCapture.request: Could not get ScreenSharing', err);
+          }
+          newAudio = (ref = opts.audio) != null ? ref : _this.options.audio;
+          newVideo = (ref1 = opts.video) != null ? ref1 : _this.options.video;
+          return _this._prepareCameraMic(newAudio, newVideo, function(err2) {
+            if (err2) {
+              console.log('RtcCapture.request: Could not get audio/video', err2);
+            }
+            return _this._check(cb);
+          });
         };
       })(this));
     };
 
-    RtcMedia.prototype.check = function(cb) {
-      if (this.preparing) {
-        return this.cbs.push(cb);
-      } else {
-        return cb(this.ok);
+    RtcCapture.prototype._check = function(cb) {
+      var cb2, err, i, len, results, x;
+      if (this.preparingScreen || this.preparingMedia) {
+        this.cbs.push(cb);
+        return;
+      }
+      err = this.errorMedia;
+      if (!err && !this.localStream) {
+        err = this.errorScreen;
+      }
+      cb(err);
+      if (this.cbs.length > 0) {
+        x = this.cbs;
+        this.cbs = [];
+        results = [];
+        for (i = 0, len = x.length; i < len; i++) {
+          cb2 = x[i];
+          results.push(cb2(err));
+        }
+        return results;
       }
     };
 
-    RtcMedia.prototype._done = function(ok) {
-      var cb, i, len, results, x;
-      this.preparing = false;
-      this.ok = ok;
-      x = this.cbs;
-      this.cbs = [];
-      results = [];
-      for (i = 0, len = x.length; i < len; i++) {
-        cb = x[i];
-        results.push(cb(this.ok));
+    RtcCapture.prototype.stop = function() {
+      var e;
+      if (this.localScreenStream) {
+        bit6.Rtc.stopMediaStream(this.localScreenStream);
+        this.localScreenStream = null;
       }
-      return results;
-    };
-
-    RtcMedia.prototype.stop = function() {
-      var ref, ref1;
       if (this.localStream) {
-        this.localStream.stop();
+        bit6.Rtc.stopMediaStream(this.localStream);
         this.localStream = null;
       }
       if (this.localEl) {
-        this.localEl.src = '';
-        if (!this.options.localMediaEl) {
-          if ((ref = this.localEl) != null) {
-            if ((ref1 = ref.parentNode) != null) {
-              ref1.removeChild(this.localEl);
+        e = this.localEl;
+        this.localEl = null;
+        if (e.src != null) {
+          e.src = '';
+        }
+        this.emit('video', e, -1);
+      }
+      return this.removeAllListeners();
+    };
+
+    RtcCapture.prototype._getScreenSharingOpts = function(cb) {
+      var onmsg, opts;
+      if ((typeof navigator !== "undefined" && navigator !== null ? navigator.mozGetUserMedia : void 0) != null) {
+        opts = {
+          video: {
+            mozMediaSource: 'window',
+            mediaSource: 'window'
+          }
+        };
+        return cb(null, opts);
+      }
+      onmsg = function(msg) {
+        var d;
+        d = msg != null ? msg.data : void 0;
+        console.log('WebApp.gotMessage', d);
+        if ((d != null ? d.state : void 0) !== 'completed') {
+          return;
+        }
+        console.log('WebRTC onmsg done');
+        window.removeEventListener('message', onmsg, false);
+        opts = {
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: msg.data.streamId,
+              maxWidth: window.screen.width,
+              maxHeight: window.screen.height
             }
           }
+        };
+        return cb(null, opts);
+      };
+      window.addEventListener('message', onmsg, false);
+      return window.postMessage({
+        requestId: 100,
+        data: ['screen', 'window']
+      }, '*');
+    };
+
+    RtcCapture.prototype._prepareScreenSharing = function(flag, cb) {
+      if (flag === false && this.localScreenStream) {
+        this.localScreenStream = null;
+        return cb(null);
+      }
+      if (!flag === true) {
+        return cb(null);
+      }
+      this.options.screen = true;
+      if (this.localScreenStream) {
+        return cb(null);
+      }
+      if (this.preparingScreen) {
+        return cb(null);
+      }
+      this.preparingScreen = true;
+      return this._getScreenSharingOpts((function(_this) {
+        return function(err, opts) {
+          if (err != null) {
+            _this.preparingScreen = false;
+            _this.errorScreen = err;
+            return cb(err);
+          }
+          return RtcCapture.getUserMedia(opts, function(err, stream) {
+            _this.preparingScreen = false;
+            if (err != null) {
+              _this.errorScreen = err;
+            }
+            if (err == null) {
+              _this.localScreenStream = stream;
+            }
+            return cb(err);
+          });
+        };
+      })(this));
+    };
+
+    RtcCapture.prototype._prepareCameraMic = function(audio, video, cb) {
+      var opts;
+      if (this.options.audio === audio && this.options.video === video) {
+        return cb(null);
+      }
+      if (this.preparingMedia) {
+        return cb(null);
+      }
+      if (!audio && !video) {
+        this.options.audio = this.options.video = false;
+        this._handleLocalCameraMicStream(null);
+        return cb(null);
+      }
+      this.options.audio = audio;
+      this.options.video = video;
+      opts = {
+        audio: this.options.audio,
+        video: this.options.video
+      };
+      this.preparingMedia = true;
+      return RtcCapture.getUserMedia(opts, (function(_this) {
+        return function(err, stream) {
+          _this.preparingMedia = false;
+          if (err != null) {
+            _this.errorMedia = err;
+          }
+          _this._handleLocalCameraMicStream(stream);
+          return cb(err);
+        };
+      })(this));
+    };
+
+    RtcCapture.prototype._handleLocalCameraMicStream = function(s) {
+      var e, olds, ref;
+      olds = this.localStream;
+      this.localStream = s;
+      if (olds && olds !== s) {
+        bit6.Rtc.stopMediaStream(olds);
+      }
+      e = (ref = this.localEl) != null ? ref : null;
+      if (this.options.video && s !== olds) {
+        if (!e) {
+          e = document.createElement('video');
+          e.setAttribute('autoplay', 'true');
+          e.setAttribute('muted', 'true');
+          e.muted = true;
+          this.emit('video', e, 1);
         }
-        return this.localEl = null;
+        return this.localEl = bit6.Rtc.attachMediaStream(e, s);
+      } else if (!this.options.video && (e != null)) {
+        this.localEl = null;
+        e.src = '';
+        return this.emit('video', e, -1);
       }
     };
 
-    RtcMedia.prototype._handleUserMedia = function(stream) {
-      var e, ref;
-      this.localStream = stream;
-      e = (ref = this.options.localMediaEl) != null ? ref : null;
-      if (!e && this.options.video) {
-        e = document.createElement('video');
-        e.setAttribute('class', 'local');
-        e.setAttribute('autoplay', 'true');
-        e.setAttribute('muted', 'true');
-        e.muted = true;
-        this.options.containerEl.appendChild(e);
+    RtcCapture.getUserMedia = function(opts, cb) {
+      var fn, n, ref, ref1, w;
+      w = window;
+      n = navigator;
+      fn = null;
+      if (!fn && (w != null ? w.getUserMedia : void 0)) {
+        fn = w.getUserMedia.bind(w);
       }
-      this.localEl = e;
-      if (e) {
-        return this.localEl = RtcMedia.attachMediaStream(e, stream);
+      if (!fn && n) {
+        fn = (ref = (ref1 = n.getUserMedia) != null ? ref1 : n.mozGetUserMedia) != null ? ref : n.webkitGetUserMedia;
+        if (fn) {
+          fn = fn.bind(n);
+        }
       }
+      if (fn == null) {
+        return cb('WebRTC not supported. Could not find getUserMedia()');
+      }
+      return fn(opts, function(stream) {
+        return cb(null, stream);
+      }, cb);
     };
 
-    RtcMedia.getUserMedia = function(opts, success, error) {
-      if ((typeof window !== "undefined" && window !== null ? window.getUserMedia : void 0) != null) {
-        return window.getUserMedia(opts, success, error);
-      }
-      if ((typeof navigator !== "undefined" && navigator !== null ? navigator.getUserMedia : void 0) != null) {
-        return navigator.getUserMedia(opts, success, error);
-      }
-      if ((typeof navigator !== "undefined" && navigator !== null ? navigator.mozGetUserMedia : void 0) != null) {
-        return navigator.mozGetUserMedia(opts, success, error);
-      }
-      if ((typeof navigator !== "undefined" && navigator !== null ? navigator.webkitGetUserMedia : void 0) != null) {
-        return navigator.webkitGetUserMedia(opts, success, error);
-      }
-      return error('WebRTC not supported. Could not find getUserMedia()');
-    };
-
-    RtcMedia.attachMediaStream = function(elem, stream) {
-      if ((typeof window !== "undefined" && window !== null ? window.attachMediaStream : void 0) != null) {
-        return window.attachMediaStream(elem, stream);
-      }
-      if ((elem != null ? elem.srcObject : void 0) != null) {
-        elem.srcObject = stream;
-      } else if ((elem != null ? elem.mozSrcObject : void 0) != null) {
-        elem.mozSrcObject = stream;
-      } else if ((elem != null ? elem.src : void 0) != null) {
-        elem.src = window.URL.createObjectURL(stream);
-      } else {
-        console.log('Error attaching stream to element', elem);
-      }
-      return elem;
-    };
-
-    return RtcMedia;
+    return RtcCapture;
 
   })(bit6.EventEmitter);
 
@@ -2371,34 +2670,46 @@
       return Rtc.__super__.constructor.apply(this, arguments);
     }
 
-    Rtc.prototype.init = function(media, outgoing, iceServers, options) {
-      this.media = media;
+    Rtc.prototype.init = function(outgoing, iceServers) {
       this.outgoing = outgoing;
-      this.options = options;
       this.pcConstraints = {
         optional: [
           {
-            'DtlsSrtpKeyAgreement': true
+            DtlsSrtpKeyAgreement: true
           }
         ]
       };
-      this.pcConfig = this._createPcConfig(iceServers);
-      this.isStarted = false;
-      this.remoteStream = null;
+      this.pcConfig = {
+        iceServers: iceServers
+      };
       this.pc = null;
+      this.remoteEls = {};
       this.outgoingTransfer = null;
       this.incomingTransfer = null;
       this.bufferedIceCandidates = [];
       this.bufferedIceCandidatesDone = false;
-      return this.bufferedOfferAnswer = null;
+      this.bufferedOfferAnswer = null;
+      this.hadIceForAudio = false;
+      return this.hadIceForVideo = false;
     };
 
-    Rtc.prototype.start = function() {
-      console.log('Rtc start', this.options);
-      this.remoteEl = null;
-      if (this.outgoing && this._preparePeerConnection()) {
-        if (this.options.data) {
+    Rtc.prototype.update = function(capture, opts, remoteOpts) {
+      var m, sdpOpts;
+      this.options = opts;
+      if (this.outgoing && this._preparePeerConnection(capture)) {
+        if (this.options.data && (this.dc == null)) {
           this._createDataChannel();
+        }
+        sdpOpts = {};
+        if (remoteOpts.audio || remoteOpts.video) {
+          m = {};
+          if (remoteOpts.audio) {
+            m.OfferToReceiveAudio = true;
+          }
+          if (remoteOpts.video) {
+            m.OfferToReceiveVideo = true;
+          }
+          sdpOpts.mandatory = m;
         }
         return this.pc.createOffer((function(_this) {
           return function(offer) {
@@ -2408,51 +2719,122 @@
           return function(err) {
             return console.log('CreateOffer error', err);
           };
-        })(this));
+        })(this), sdpOpts);
       }
     };
 
     Rtc.prototype.stop = function() {
-      var ref, ref1;
-      this.isStarted = false;
-      if (this.remoteStream) {
-        this.remoteStream = null;
-      }
-      if (this.remoteEl) {
-        this.remoteEl.src = '';
-        if (!this.options.remoteMediaEl) {
-          if ((ref = this.remoteEl) != null) {
-            if ((ref1 = ref.parentNode) != null) {
-              ref1.removeChild(this.remoteEl);
-            }
-          }
+      var e, id, ref, ref1, ref2;
+      ref = this.remoteEls;
+      for (id in ref) {
+        e = ref[id];
+        if (e.src != null) {
+          e.src = '';
         }
-        this.remoteEl = null;
+        this._removeDomElement(e);
       }
-      if (this.dc) {
-        this.dc.close();
-        this.dc = null;
+      this.remoteEls = {};
+      if ((ref1 = this.dc) != null) {
+        ref1.close();
       }
-      if (this.pc) {
-        this.pc.close();
-        return this.pc = null;
+      this.dc = null;
+      if ((ref2 = this.pc) != null) {
+        ref2.close();
       }
+      return this.pc = null;
     };
 
-    Rtc.prototype._preparePeerConnection = function() {
-      var ref;
-      if (this.isStarted) {
-        return false;
+    Rtc.prototype.getRemoteTrackKinds = function() {
+      var hasAudio, hasVideo, i, j, len, len1, ref, ref1, ref2, s, ss, t;
+      hasVideo = false;
+      hasAudio = false;
+      ss = (ref = (ref1 = this.pc) != null ? typeof ref1.getRemoteStreams === "function" ? ref1.getRemoteStreams() : void 0 : void 0) != null ? ref : [];
+      for (i = 0, len = ss.length; i < len; i++) {
+        s = ss[i];
+        ref2 = s.getTracks();
+        for (j = 0, len1 = ref2.length; j < len1; j++) {
+          t = ref2[j];
+          if (t.kind === 'video' && !t.muted) {
+            hasVideo = true;
+          }
+          if (t.kind === 'audio') {
+            hasAudio = true;
+          }
+        }
       }
-      this.pc = this._createPeerConnection();
+      return {
+        audio: hasAudio,
+        video: hasVideo
+      };
+    };
+
+    Rtc.prototype._preparePeerConnection = function(capture) {
+      var localStreams;
+      if (this.pc == null) {
+        this.pc = this._createPeerConnection();
+      }
       if (this.pc == null) {
         return false;
       }
-      if ((ref = this.media) != null ? ref.localStream : void 0) {
-        this.pc.addStream(this.media.localStream);
+      localStreams = capture.getStreams(this.options);
+      if ((typeof window !== "undefined" && window !== null ? window.mozRTCPeerConnection : void 0) != null) {
+        this._mozSyncLocalStreams(this.pc, localStreams);
+      } else {
+        this._syncLocalStreams(this.pc, localStreams);
       }
-      this.isStarted = true;
       return true;
+    };
+
+    Rtc.prototype._syncLocalStreams = function(pc, localStreams) {
+      var i, j, k, len, len1, ref, results, s, toRemove;
+      toRemove = {};
+      ref = pc.getLocalStreams();
+      for (i = 0, len = ref.length; i < len; i++) {
+        s = ref[i];
+        toRemove[s.id] = s;
+      }
+      for (j = 0, len1 = localStreams.length; j < len1; j++) {
+        s = localStreams[j];
+        if (toRemove[s.id]) {
+          delete toRemove[s.id];
+        } else {
+          pc.addStream(s);
+        }
+      }
+      results = [];
+      for (k in toRemove) {
+        s = toRemove[k];
+        results.push(pc.removeStream(s));
+      }
+      return results;
+    };
+
+    Rtc.prototype._mozSyncLocalStreams = function(pc, localStreams) {
+      var i, j, k, l, len, len1, len2, ref, ref1, results, s, t, toRemove;
+      toRemove = {};
+      ref = pc.getSenders();
+      for (i = 0, len = ref.length; i < len; i++) {
+        s = ref[i];
+        toRemove[s.track.id] = s;
+      }
+      for (j = 0, len1 = localStreams.length; j < len1; j++) {
+        s = localStreams[j];
+        ref1 = s.getTracks();
+        for (l = 0, len2 = ref1.length; l < len2; l++) {
+          t = ref1[l];
+          if (toRemove[t.id]) {
+            delete toRemove[t.id];
+          } else {
+            pc.addTrack(t, s);
+          }
+        }
+      }
+      results = [];
+      for (k in toRemove) {
+        s = toRemove[k];
+        results.push(pc.removeTrack(s));
+      }
+      return results;
     };
 
     Rtc.prototype._createPeerConnection = function() {
@@ -2462,22 +2844,32 @@
         pc = new PeerConnection(this.pcConfig, this.pcConstraints);
         pc.onicecandidate = (function(_this) {
           return function(evt) {
-            return _this._handleIceCandidate(evt);
-          };
-        })(this);
-        pc.onaddstream = (function(_this) {
-          return function(evt) {
-            return _this._handleRemoteStreamAdded(evt);
-          };
-        })(this);
-        pc.onremovestream = (function(_this) {
-          return function(evt) {
-            return _this._handleRemoteStreamRemoved(evt);
+            return _this._handleIceCandidate(evt.candidate);
           };
         })(this);
         pc.ondatachannel = (function(_this) {
           return function(evt) {
             return _this._createDataChannel(evt.channel);
+          };
+        })(this);
+        pc.onaddstream = (function(_this) {
+          return function(evt) {
+            return _this._handleRemoteStreamAdded(evt.stream);
+          };
+        })(this);
+        pc.onremovestream = (function(_this) {
+          return function(evt) {
+            return _this._handleRemoteStreamRemoved(evt.stream);
+          };
+        })(this);
+        pc.onaddtrack = (function(_this) {
+          return function(evt) {
+            return console.log('onaddtrack', evt);
+          };
+        })(this);
+        pc.onremovetrack = (function(_this) {
+          return function(evt) {
+            return console.log('onremovetrack', evt);
           };
         })(this);
         return pc;
@@ -2521,12 +2913,10 @@
     };
 
     Rtc.prototype._handleDcOpen = function() {
-      console.log("The Data Channel is Opened");
       return this.emit('dcOpen');
     };
 
     Rtc.prototype._handleDcClose = function() {
-      console.log("The Data Channel is Closed");
       if (this.outgoingTransfer || this.incomingTransfer) {
         return this._handleDcError('DataChannel closed');
       }
@@ -2576,19 +2966,16 @@
       }
     };
 
-    Rtc.prototype._handleIceCandidate = function(evt) {
-      var base, c, idx;
-      console.log('handleIceCandidate event: ', evt);
-      if (evt.candidate != null) {
-        c = evt.candidate;
+    Rtc.prototype._handleIceCandidate = function(c) {
+      var base, idx;
+      if ((c != null ? c.candidate : void 0) != null) {
         idx = c.sdpMLineIndex;
         if ((base = this.bufferedIceCandidates)[idx] == null) {
           base[idx] = [];
         }
-        return this.bufferedIceCandidates[idx].push(c);
+        this.bufferedIceCandidates[idx].push(c);
+        return this.bufferedIceCandidatesDone = false;
       } else {
-        console.log('End of candidates.');
-        console.log('BufferedCandidates', this.bufferedIceCandidates);
         this.bufferedIceCandidatesDone = true;
         return this._maybeSendOfferAnswer();
       }
@@ -2600,24 +2987,26 @@
         offerAnswer = this._mergeSdp(this.bufferedOfferAnswer, this.bufferedIceCandidates);
         this.bufferedOfferAnswer = null;
         this.bufferedIceCandidates = [];
-        this.bufferedIceCandidatesDone = false;
-        console.log('Send OfferAnswer:', offerAnswer);
+        if (this.options.audio) {
+          this.hadIceForAudio = true;
+        }
+        if (this.options.video) {
+          this.hadIceForVideo = true;
+        }
+        if ((this.options.audio && !this.hadIceForAudio) || (this.options.video && !this.hadIceForVideo)) {
+          this.bufferedIceCandidatesDone = false;
+        }
         if (offerAnswer) {
           return this.emit('offerAnswer', offerAnswer);
         }
       }
     };
 
-    Rtc.prototype._createPcConfig = function(iceServers) {
-      var c;
-      console.log('RTC createPcConfig got ICE servers:', iceServers);
-      return c = {
-        iceServers: iceServers
-      };
-    };
-
     Rtc.prototype._mergeSdp = function(offerAnswer, candidatesByMlineIndex) {
       var chunk, chunks, end, i, idx, len, sdp, start;
+      if (candidatesByMlineIndex.length === 0) {
+        return offerAnswer;
+      }
       sdp = offerAnswer.sdp;
       chunks = [];
       start = 0;
@@ -2629,6 +3018,12 @@
       sdp = '';
       for (idx = i = 0, len = chunks.length; i < len; idx = ++i) {
         chunk = chunks[idx];
+        if (chunk.indexOf('m=audio') === 0) {
+          this.hadIceForAudio = true;
+        }
+        if (chunk.indexOf('m=video') === 0) {
+          this.hadIceForVideo = true;
+        }
         sdp += chunk;
         if (idx > 0 && (candidatesByMlineIndex[idx - 1] != null)) {
           sdp += this._iceCandidatesToSdp(candidatesByMlineIndex[idx - 1]);
@@ -2648,40 +3043,101 @@
       return t;
     };
 
-    Rtc.prototype._handleRemoteStreamAdded = function(evt) {
-      var e, ref, ref1;
-      this.remoteStream = evt.stream;
-      e = (ref = this.options.remoteMediaEl) != null ? ref : null;
-      if (!e) {
-        if (this.options.video) {
-          e = document.createElement('video');
-          this.options.containerEl.appendChild(e);
-        } else if (this.options.audio) {
-          e = document.createElement('audio');
-          if ((typeof window !== "undefined" && window !== null ? window.webrtcDetectedType : void 0) === 'plugin') {
-            if (typeof document !== "undefined" && document !== null) {
-              if ((ref1 = document.body) != null) {
-                ref1.appendChild(e);
-              }
+    Rtc.prototype._handleRemoteStreamAdded = function(s) {
+      var e, hasAudio, hasVideo, i, len, ref, ref1, t;
+      s.onaddtrack = (function(_this) {
+        return function(ee) {
+          return _this._handleRemoteTrackAdded(ee.target, ee.track);
+        };
+      })(this);
+      s.onremovetrack = (function(_this) {
+        return function(ee) {
+          return _this._handleRemoteTrackRemoved(ee.target, ee.track);
+        };
+      })(this);
+      hasVideo = false;
+      hasAudio = false;
+      ref = s.getTracks();
+      for (i = 0, len = ref.length; i < len; i++) {
+        t = ref[i];
+        if (t.kind === 'video' && (!t.muted)) {
+          hasVideo = true;
+        }
+        if (t.kind === 'audio') {
+          hasAudio = true;
+        }
+      }
+      e = null;
+      if (hasVideo) {
+        e = document.createElement('video');
+        this.emit('video', e, 1);
+      } else if (hasAudio) {
+        e = document.createElement('audio');
+        if ((typeof window !== "undefined" && window !== null ? window.webrtcDetectedType : void 0) === 'plugin') {
+          if (typeof document !== "undefined" && document !== null) {
+            if ((ref1 = document.body) != null) {
+              ref1.appendChild(e);
             }
           }
         }
-        if (e) {
-          e.setAttribute('class', 'remote');
-          e.setAttribute('autoplay', 'true');
-        }
       }
-      this.remoteEl = e;
       if (e) {
-        this.remoteEl = bit6.RtcMedia.attachMediaStream(e, evt.stream);
+        e.setAttribute('autoplay', 'true');
+        e = bit6.Rtc.attachMediaStream(e, s);
       }
-      if (this.options.video) {
-        return this.emit('videos');
+      return this.remoteEls[s.id] = e;
+    };
+
+    Rtc.prototype._handleRemoteStreamRemoved = function(s) {
+      var e;
+      s.onaddtrack = null;
+      s.onremovetrack = null;
+      e = this.remoteEls[s.id];
+      delete this.remoteEls[s.id];
+      if (e != null) {
+        if (e.src != null) {
+          e.src = '';
+        }
+        return this._removeDomElement(e);
       }
     };
 
-    Rtc.prototype._handleRemoteStreamRemoved = function(evt) {
-      return console.log('Remote stream removed:', evt);
+    Rtc.prototype._handleRemoteTrackAdded = function(s, t) {
+      if (t.kind === 'video') {
+        this._handleRemoteStreamRemoved(s);
+        return this._handleRemoteStreamAdded(s);
+      }
+    };
+
+    Rtc.prototype._handleRemoteTrackRemoved = function(s, t) {
+      if (t.kind === 'video') {
+        this._handleRemoteStreamRemoved(s);
+        return this._handleRemoteStreamAdded(s);
+      }
+    };
+
+    Rtc.prototype._removeDomElement = function(e) {
+      var i, isAudio, len, nodeName, p, ref, ref1, ref2;
+      nodeName = e != null ? (ref = e.nodeName) != null ? typeof ref.toLowerCase === "function" ? ref.toLowerCase() : void 0 : void 0 : void 0;
+      isAudio = false;
+      if ('object' === nodeName) {
+        if (e.children) {
+          ref1 = e.children;
+          for (i = 0, len = ref1.length; i < len; i++) {
+            p = ref1[i];
+            if ('tag' === p.name && 'audio' === p.value) {
+              isAudio = true;
+            }
+          }
+        }
+      } else if ('audio' === nodeName) {
+        isAudio = true;
+      }
+      if (isAudio) {
+        return (ref2 = e.parentNode) != null ? typeof ref2.removeChild === "function" ? ref2.removeChild(e) : void 0 : void 0;
+      } else {
+        return this.emit('video', e, -1);
+      }
     };
 
     Rtc.prototype._setLocalAndSendOfferAnswer = function(offerAnswer) {
@@ -2700,15 +3156,13 @@
       })(this));
     };
 
-    Rtc.prototype.gotRemoteOfferAnswer = function(msg) {
-      var SessionDescription, offerAnswer;
+    Rtc.prototype.gotRemoteOfferAnswer = function(msg, capture) {
+      var SessionDescription, offerAnswer, ref;
       SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription;
       offerAnswer = new SessionDescription(msg);
       switch (msg.type) {
         case 'offer':
-          if (!this.outgoing && !this.isStarted) {
-            this._preparePeerConnection();
-          }
+          this._preparePeerConnection(capture);
           this.pc.setRemoteDescription(offerAnswer);
           return this.pc.createAnswer((function(_this) {
             return function(answer) {
@@ -2720,9 +3174,7 @@
             };
           })(this));
         case 'answer':
-          if (this.isStarted) {
-            return this.pc.setRemoteDescription(offerAnswer);
-          }
+          return (ref = this.pc) != null ? ref.setRemoteDescription(offerAnswer) : void 0;
       }
     };
 
@@ -2779,6 +3231,37 @@
           }
         };
       })(this), delay);
+    };
+
+    Rtc.attachMediaStream = function(elem, stream) {
+      if ((typeof window !== "undefined" && window !== null ? window.attachMediaStream : void 0) != null) {
+        return window.attachMediaStream(elem, stream);
+      }
+      if ((elem != null ? elem.srcObject : void 0) != null) {
+        elem.srcObject = stream;
+      } else if ((elem != null ? elem.mozSrcObject : void 0) != null) {
+        elem.mozSrcObject = stream;
+      } else if ((elem != null ? elem.src : void 0) != null) {
+        elem.src = window.URL.createObjectURL(stream);
+      } else {
+        console.log('Error attaching stream to element', elem);
+      }
+      return elem;
+    };
+
+    Rtc.stopMediaStream = function(s) {
+      var i, len, ref, results, t;
+      if (s.stop) {
+        return s.stop();
+      } else if (s.getTracks) {
+        ref = s.getTracks();
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          t = ref[i];
+          results.push(t != null ? t.stop() : void 0);
+        }
+        return results;
+      }
     };
 
     return Rtc;
@@ -2940,7 +3423,6 @@
         if (claimsStr != null) {
           claims = JSON.parse(bit6.Session.base64urlDecode(claimsStr));
         }
-        console.log('Jwt claims', claims);
       } catch (error) {
         ex = error;
         console.log('Error parsing Jwt claims', r[1]);
@@ -3009,6 +3491,31 @@
         return 0;
       }
       return (this.progress * 100 / this.total).toFixed(2);
+    };
+
+    Transfer.prototype.json = function(o) {
+      var arr, i, j, k, ref, ref1, t;
+      if (o) {
+        this.info.type = 'application/json';
+        t = JSON.stringify(o);
+        arr = new Uint8Array(t.length);
+        for (i = j = 0, ref = t.length; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+          arr[i] = t.charCodeAt(i);
+        }
+        this.info.size = arr.byteLength;
+        this.data = arr.buffer;
+      } else {
+        if (this.info.type === !'application/json') {
+          return null;
+        }
+        arr = new Uint8Array(this.data);
+        t = '';
+        for (i = k = 0, ref1 = arr.length; 0 <= ref1 ? k < ref1 : k > ref1; i = 0 <= ref1 ? ++k : --k) {
+          t += String.fromCharCode(arr[i]);
+        }
+        o = JSON.parse(t);
+      }
+      return o;
     };
 
     Transfer.prototype._ensureSourceData = function(cb) {
@@ -3096,7 +3603,7 @@
         rawLength = raw.length;
         ab = new ArrayBuffer(rawLength);
         arr = new Uint8Array(ab);
-        for (i = j = 0, ref = rawLength - 1; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+        for (i = j = 0, ref = rawLength; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
           arr[i] = raw.charCodeAt(i);
         }
         raw = ab;

@@ -51,7 +51,7 @@ var d = b6.startCall('usr:tom', {audio: true, video: true});
 ```
 
 ### Documentation
-Bit6 Cordova Plugin exposes the same API as [Bit6 JS SDK](https://github.com/bit6/bit6-js-sdk). Check Bit6 [JS documentation](http://bit6.github.io/bit6-js-sdk/). 
+Bit6 Cordova Plugin exposes the same API as [Bit6 JS SDK](https://github.com/bit6/bit6-js-sdk). Check Bit6 [JS documentation](http://bit6.github.io/bit6-js-sdk/).
 
 ### Demo app
 The complete source code is available in the [demo repo](https://github.com/bit6/bit6-cordova-demo). Check out the same demo app running with JS SDK at http://demo.bit6.com.
@@ -63,7 +63,7 @@ The complete source code is available in the [demo repo](https://github.com/bit6
 
 ### Push notifications
 
-Push Notification support is required for receiving incoming calls and messages. 
+Push Notification support is required for receiving incoming calls and messages.
 
 Bit6 depends on [PushNotification](https://github.com/Telerik-Verified-Plugins/PushNotification) plugin which will be installed automatically.
 
@@ -74,6 +74,10 @@ Bit6 depends on [PushNotification](https://github.com/Telerik-Verified-Plugins/P
 * __Android GCM__
     1. Get the project id and server key from [Google Dev Console](http://developer.android.com/google/gcm/gs.html).
     2. Add project id and server key for your app in [Bit6 Dashboard](https://dashboard.bit6.com).
+
+### Building with Xcode 7
+Please disable Bitcode support when building your Cordova app with Xcode.
+Go to `Build Settings`, set `Enable Bitcode` to `No`.
 
 ### Third-party libraries
 Bit6 plugin leverages code from the excellent [WebRTC](http://www.webrtc.org/), [PhoneRTC](https://github.com/alongubkin/phonertc) and [phonegap-websocket](https://github.com/mkuklis/phonegap-websocket/) projects.

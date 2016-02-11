@@ -202,3 +202,14 @@ exports.hideVideoView = function () {
 exports.showVideoView = function () {
   exec(null, null, 'PhoneRTCPlugin', 'showVideoView', []);
 };
+
+function isApnsProduction(onSuccess) {
+  if (cordova.platformId === 'ios') { //This is needed only for ios.
+    exec(onSuccess, null, 'PhoneRTCPlugin', 'isApnsProduction', []);
+  }
+  else {
+    onSuccess(false);
+  }
+}
+
+exports.isApnsProduction = isApnsProduction;
