@@ -1,3 +1,25 @@
+## 0.9.6.1 [2016-03-15]
+
+### Release Notes
+
+This release adds support for cordova-ios 4.x, reduces plugin size, and fixes an issue with iOS push notifications for Ad Hoc builds.
+
+### Breaking Changes
+
+- iOS simulator build is not supported - i386 slice is removed from iOS WebRTC library
+- Push plugin dependency must be specified manually in the application - see 'Push notifications' section in README
+
+### Features
+
+- Added support for cordova-ios 4.x
+- Significantly reduced plugin size
+- Updated WebRTC lib: Android - m49
+
+### Bugfixes
+
+- Fixed iOS push issue for Ad Hoc builds
+
+
 ## 0.9.6 [2016-02-11]
 
 ### Release Notes

@@ -65,15 +65,24 @@ The complete source code is available in the [demo repo](https://github.com/bit6
 
 Push Notification support is required for receiving incoming calls and messages.
 
-Bit6 depends on [PushNotification](https://github.com/Telerik-Verified-Plugins/PushNotification) plugin which will be installed automatically.
+To enable this functionality please add one of these push plugins to your project:
+
+* [Telerik Push Plugin](https://github.com/Telerik-Verified-Plugins/PushNotification) (Recommended)
+* [Legacy PhoneGap Push Plugin](https://github.com/phonegap-build/PushPlugin)
+
+```bash
+cordova plugin add https://github.com/Telerik-Verified-Plugins/PushNotification
+```
+
+Then complete platform-specific configuration:
 
 * __iOS APNs__
     1. Generate APNS certificate in iTunes Connect.
-    2. Export it and convert to PEM files (key and certificate).
-    3. Add the files to your app in [Bit6 Dashboard](https://dashboard.bit6.com).
+    2. Export it into a p12 file.
+    3. Add the file to your app in [Bit6 Dashboard](https://dashboard.bit6.com).
 * __Android GCM__
-    1. Get the project id and server key from [Google Dev Console](http://developer.android.com/google/gcm/gs.html).
-    2. Add project id and server key for your app in [Bit6 Dashboard](https://dashboard.bit6.com).
+    1. Get the project number and server key from [Google Dev Console](http://developer.android.com/google/gcm/gs.html).
+    2. Add project number and server key for your app in [Bit6 Dashboard](https://dashboard.bit6.com).
 
 ### Building with Xcode 7
 Please disable Bitcode support when building your Cordova app with Xcode.
