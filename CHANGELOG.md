@@ -1,3 +1,20 @@
+## 0.9.7 [2016-04-28]
+
+### Release Notes
+
+This release adds support for new push plugin (phonegap-plugin-push) while keeping the compatibility with the previously supported push plugins.
+
+### Features
+
+- Added support for phonegap-plugin-push
+- Added push alerts localizatoin support on iOS. Works with new phonegap-plugin-push only
+
+### Bugfixes
+
+- Fixed the call issue appearing on some Android devices caused by a missing permission
+- Fixed issues with Intel XDK Emulator (iOS, Android) and debugging in AppPreview (Android only)
+- Fixed camera selection on Android to use the front camera for video calls
+
 ## 0.9.6.1 [2016-03-15]
 
 ### Release Notes

@@ -2,7 +2,7 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.bit6.sdk"
-    version="0.9.6.1">
+    version="0.9.7">
 
     <name>Bit6</name>
     <description>Add voice and video calling, text and media messaging to your app</description>
@@ -102,6 +102,7 @@
         <source-file src="src/ios/Config.h" />
         <source-file src="src/ios/SessionDescriptionDelegate.m" />
         <source-file src="src/ios/SessionDescriptionDelegate.h" />
+        <source-file src="src/ios/Base.lproj/Localizable.strings" target-dir="Resources/Base.lproj" />
 
     </platform>
     <platform name="android">
@@ -124,6 +125,7 @@
             <uses-feature android:name="android.hardware.camera.autofocus" />
             <uses-feature android:glEsVersion="0x00020000" android:required="true"></uses-feature>
             <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />

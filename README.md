@@ -4,6 +4,11 @@ Bit6 Cordova Plugin
 
 Add voice/video calling, texting, and rich media messaging into any mobile or web application.
 
+Get Bit6 sample app running in 10 minutes - follow our Quick Start guides for:
+* [Cordova CLI](http://docs.bit6.com/start/cordova-cli/)
+* [Intel XDK](http://docs.bit6.com/start/cordova-xdk/)
+* [Telerik App Builder](http://docs.bit6.com/start/cordova-telerik/)
+
 ### Prerequisites
 * Get the API Key at [Bit6 Dashboard](https://dashboard.bit6.com).
 
@@ -51,7 +56,7 @@ var d = b6.startCall('usr:tom', {audio: true, video: true});
 ```
 
 ### Documentation
-Bit6 Cordova Plugin exposes the same API as [Bit6 JS SDK](https://github.com/bit6/bit6-js-sdk). Check Bit6 [JS documentation](http://bit6.github.io/bit6-js-sdk/).
+Bit6 Cordova Plugin exposes the same API as [Bit6 JS SDK](https://github.com/bit6/bit6-js-sdk). Check Bit6 [JS documentation](http://docs.bit6.com/guides/js/).
 
 ### Demo app
 The complete source code is available in the [demo repo](https://github.com/bit6/bit6-cordova-demo). Check out the same demo app running with JS SDK at http://demo.bit6.com.
@@ -67,20 +72,28 @@ Push Notification support is required for receiving incoming calls and messages.
 
 To enable this functionality please add one of these push plugins to your project:
 
-* [Telerik Push Plugin](https://github.com/Telerik-Verified-Plugins/PushNotification) (Recommended)
-* [Legacy PhoneGap Push Plugin](https://github.com/phonegap-build/PushPlugin)
+* [phonegap-plugin-push](https://github.com/phonegap/phonegap-plugin-push) (recommended)
+  ```sh
+  # Set any value for SENDER_ID. Bit6 plugin will override it with the correct one.
+  $ cordova plugin add phonegap-plugin-push --variable SENDER_ID="XXXXXXX"
+  ```
 
-```bash
-cordova plugin add https://github.com/Telerik-Verified-Plugins/PushNotification
-```
+* [Telerik Push Plugin](https://github.com/Telerik-Verified-Plugins/PushNotification)
+  ```sh
+  $ cordova plugin add https://github.com/Telerik-Verified-Plugins/PushNotification
+  ```
+
+* [Legacy PhoneGap Push Plugin](https://github.com/phonegap-build/PushPlugin) If you use cordova-ios 3.x
+
 
 Then complete platform-specific configuration:
 
-* __iOS APNs__
+* __iOS APNs__ ([detailed guide](http://docs.bit6.com/guides/push-apns/))
     1. Generate APNS certificate in iTunes Connect.
     2. Export it into a p12 file.
     3. Add the file to your app in [Bit6 Dashboard](https://dashboard.bit6.com).
-* __Android GCM__
+
+* __Android GCM__ ([detailed guide](http://docs.bit6.com/guides/push-gcm/))
     1. Get the project number and server key from [Google Dev Console](http://developer.android.com/google/gcm/gs.html).
     2. Add project number and server key for your app in [Bit6 Dashboard](https://dashboard.bit6.com).
 

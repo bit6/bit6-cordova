@@ -40,18 +40,24 @@ function initPushService(b6) {
     // Short name for the platform for Bit6
     var plat = device.platform.toLowerCase();
 
+    // Is this a web-based emulator?
+    var isEmu = false;
+    if (navigator.simulator) {
+        isEmu = true;
+    }
+    if (!isEmu && device.isVirtual) {
+        isEmu = true;
+    }
+
     // TODO: Are we sure that simulator is always web-based?
     // and not for example device emulator running on a PC?
-    if (navigator.simulator) {
+    if (isEmu) {
         plat = 'web';
-    }
-    else if (plat == 'ios') {
+    } else if (plat == 'ios') {
         plat = 'ios';
-    }
-    else if (plat == 'android') {
+    } else if (plat == 'android') {
         plat = 'and';
-    }
-    else {
+    } else {
         plat = 'web';
     }
 
@@ -88,15 +94,11 @@ function initPushService(b6) {
         });
     };
 
-    var sendIOSPushkeyToServer = function(key) {
+    var sendApnsPushkeyToServer = function(key) {
         //For iOS adding prefix p_/d_ to the push token for Bit6 server to use correct APNS
-        phonertc.isApnsProduction(function(isApnsProduction) {
-            var pushkey = key;
-            if (plat == 'ios') {
-                pushkey = isApnsProduction ? 'p_' + key : 'd_' + key;
-            }
-
-            sendPushkeyToServer(pushkey);
+        phonertc.isApnsProduction(function(isProd) {
+            var prefix = isProd ? 'p_' : 'd_';
+            sendPushkeyToServer(prefix + key);
         });
     };
 
@@ -105,7 +107,7 @@ function initPushService(b6) {
     // Note that the function has to be in global scope!
     window.onPushGCM = function(e) {
         console.log('Got GCM: ' + e.event);
-        switch(e.event) {
+        switch (e.event) {
             // Registered with GCM
             case 'registered':
                 if (e.regid && e.regid.length > 0) {
@@ -113,7 +115,7 @@ function initPushService(b6) {
                     sendPushkeyToServer(e.regid);
                 }
                 break;
-            // Got a push message
+                // Got a push message
             case 'message':
                 // App is currently running
                 if (e.foreground) {
@@ -130,11 +132,11 @@ function initPushService(b6) {
                 // For now we just feed it to Bit6 JS
                 b6._handlePushRtMessage(e.payload);
                 break;
-            // Got GCM error
+                // Got GCM error
             case 'error':
                 console.log('GCM err: ' + e.msg)
                 break;
-            // Unknown GCM event
+                // Unknown GCM event
             default:
                 console.log('GCM unknown event: ' + e.event)
                 break;
@@ -162,32 +164,84 @@ function initPushService(b6) {
     // Listen to the completion of the auth procedure.
     // At that time we will have more info about the push config
     b6.session.on('auth', function() {
-        // When Bit6 auth is done, we should have Android GCM senderId
-        if (plat == 'and') {
-            // TODO: check that all the values exist, showing the alert for now
-            if (b6.session.config.gcm === undefined) {
-                alert("There will be errors as long as you don't enable GCM push notifications for this app.");
-            }
-
-            var gcmSenderId = b6.session.config.gcm.senderId;
-            console.log('GCM senderId=' + gcmSenderId);
-            var opts = {
-                senderID: gcmSenderId,
-                ecb: 'onPushGCM'
-            };
-            console.log('Register GCM', opts);
-            window.plugins.pushNotification.register(okh, errh, opts);
-        }
-        // On iOS we just specify the type of pushes we want to receive
-        else if (plat == 'ios') {
-            var opts = {
-                badge: 'true',
-                sound: 'true',
-                alert: 'true',
-                ecb: 'onPushAPN'
-            };
-            console.log('Register APN', opts);
-            window.plugins.pushNotification.register(sendIOSPushkeyToServer, errh, opts);
+        if (window.plugins && window.plugins.pushNotification && window.plugins.pushNotification.register) { //Check if this is the legacy PushPlugin
+            registerPush_legacyPlugin();
+        } else if (PushNotification && PushNotification.init) { //PluginPush
+            registerPush_pluginPush();
         }
     });
+
+    // Legacy and Telerik Push plugins
+    var registerPush_legacyPlugin = function() {
+            // When Bit6 auth is done, we should have Android GCM senderId
+            if (plat == 'and') {
+                // TODO: check that all the values exist, showing the alert for now
+                if (b6.session.config.gcm === undefined) {
+                    alert("There will be errors as long as you don't enable GCM push notifications for this app.");
+                }
+
+                var gcmSenderId = b6.session.config.gcm.senderId;
+                console.log('GCM senderId=' + gcmSenderId);
+                var opts = {
+                    senderID: gcmSenderId,
+                    ecb: 'onPushGCM'
+                };
+                console.log('Register GCM', opts);
+                window.plugins.pushNotification.register(okh, errh, opts);
+            }
+            // On iOS we just specify the type of pushes we want to receive
+            else if (plat == 'ios') {
+                //Hack to keep the old format of push payload, otherwise telerik/legacy plugin will fail
+                bit6.Client.version = '0.9.6'
+
+                var opts = {
+                    badge: 'true',
+                    sound: 'true',
+                    alert: 'true',
+                    ecb: 'onPushAPN'
+                };
+                console.log('Register APN', opts);
+                window.plugins.pushNotification.register(sendApnsPushkeyToServer, errh, opts);
+            }
+        }
+
+    // New PhoneGap Push plugin
+    var registerPush_pluginPush = function() {
+        if (plat == 'and') {
+            var gcmSenderId = b6.session.config.gcm.senderId;
+            console.log('GCM senderId=' + gcmSenderId);
+            var push = PushNotification.init({
+                android: {
+                    senderID: gcmSenderId,
+                    clearNotifications: 'true'
+                }
+            });
+            push.on('registration', function(data) {
+                sendPushkeyToServer(data.registrationId);
+            });
+            push.on('notification', function(data) {
+                // Feed it into JS SDK
+                b6._handlePushRtMessage(data.additionalData);
+            });
+        } else if (plat == 'ios') {
+            var push = PushNotification.init({
+                ios: {
+                    alert: 'true',
+                    badge: 'true',
+                    sound: 'true',
+                    clearBadge: 'true'
+                }
+            });
+            push.on('registration', function(data) {
+                sendApnsPushkeyToServer(data.registrationId);
+            });
+            push.on('notification', function(data) {
+                if (data.count) {
+                    push.setApplicationIconBadgeNumber(okh, errh, data.count)
+                }
+                // Feed it into JS SDK
+                b6._handlePushRtMessage(data.additionalData.data);
+            });
+        }
+    }
 }

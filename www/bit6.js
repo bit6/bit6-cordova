@@ -1,4 +1,4 @@
-// bit6 - v0.9.6
+// bit6 - v0.9.7
 
 (function() {
   var slice = [].slice;
@@ -163,14 +163,14 @@
         console.log('ConvId is null', this);
         return null;
       }
-      return this.id.replace(/\:/g, '--').replace(/\./g, '_-').replace(/\+/g, '-_');
+      return bit6.Session.base64urlEncode(this.id);
     };
 
     Conversation.fromDomId = function(t) {
       if (!t) {
         return t;
       }
-      return t.replace(/--/g, ':').replace(/_-/g, '.').replace(/-_/g, '+');
+      return bit6.Session.base64urlDecode(t);
     };
 
     return Conversation;
@@ -713,7 +713,7 @@
 
     extend(Client, superClass);
 
-    Client.version = '0.9.6';
+    Client.version = '0.9.7';
 
     endpoints = {
       prod: 'https://api.bit6.com',
@@ -722,13 +722,14 @@
     };
 
     function Client(opts) {
-      var hasWebRTC, ref;
+      var hasWebRTC, ref, ref1, ref2, url;
       Client.__super__.constructor.apply(this, arguments);
       if ((opts != null ? opts.apikey : void 0) == null) {
         throw 'Missing required "apikey" option';
       }
       this.apikey = opts.apikey;
-      this.env = (ref = opts.env) != null ? ref : 'prod';
+      url = (ref = (ref1 = opts.url) != null ? ref1 : opts.env) != null ? ref : 'prod';
+      this.apiurl = (ref2 = endpoints[url]) != null ? ref2 : url;
       hasWebRTC = (window.RTCPeerConnection != null) || (window.mozRTCPeerConnection != null) || (window.webkitRTCPeerConnection != null);
       this.caps = {
         audio: hasWebRTC,
@@ -1097,7 +1098,7 @@
         id: ident,
         role: role
       };
-      return this.api('/groups/' + g.id + '/members', 'POST', memberInfo, (function(_this) {
+      return this.api('/groups/' + gid + '/members', 'POST', memberInfo, (function(_this) {
         return function(err, member) {
           if (err) {
             return cb(err);
@@ -1417,6 +1418,7 @@
       switch (r[0]) {
         case 'usr':
         case 'pstn':
+        case 'mailto':
           t = r[1];
           break;
         case 'grp':
@@ -1646,7 +1648,7 @@
         data = {};
       }
       m = m.toLowerCase();
-      url = endpoints[this.env] + path;
+      url = this.apiurl + path;
       url += path.indexOf('?') < 0 ? '?' : '&';
       url += 'apikey=' + this.apikey;
       if (m !== 'post') {
@@ -1660,7 +1662,7 @@
       xhr.open('POST', url, true);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.onreadystatechange = function() {
-        var error, ex, r;
+        var error, ex, isXhrOk, r;
         if (xhr.readyState === 4) {
           r = null;
           try {
@@ -1686,7 +1688,8 @@
             }
             return;
           }
-          if (xhr.status === 200 && r.status >= 200 && r.status < 300) {
+          isXhrOk = xhr.status === 200 || xhr.status === 0;
+          if (isXhrOk && r.status >= 200 && r.status < 300) {
             return typeof cb === "function" ? cb(null, r.response, r.headers) : void 0;
           } else {
             return typeof cb === "function" ? cb(r.response, null, r.headers) : void 0;
@@ -1995,14 +1998,14 @@
       this.client = client;
       Outgoing.__super__.constructor.apply(this, arguments);
       this.id = bit6.JsonRpc.generateGUID();
-      this.me = this.client.session.identity;
       this.created = this.updated = Date.now();
       this.flags = bit6.Message.TEXT | bit6.Message.SENDING;
+      this.from(this.client.session.identity, this.client.session.displayName);
     }
 
     Outgoing.prototype._export = function() {
       var i, k, len, n, x;
-      n = ['id', 'flags', 'me', 'other', 'content', 'data'];
+      n = ['id', 'flags', 'me', 'from_name', 'other', 'content', 'data'];
       x = {};
       for (i = 0, len = n.length; i < len; i++) {
         k = n[i];
@@ -2019,6 +2022,14 @@
 
     Outgoing.prototype.to = function(other) {
       this.other = other;
+      return this;
+    };
+
+    Outgoing.prototype.from = function(from, name) {
+      this.me = from;
+      if (name) {
+        this.from_name = name;
+      }
       return this;
     };
 
@@ -3278,7 +3289,7 @@
   bit6.Session = (function(superClass) {
     extend(Session, superClass);
 
-    Session.prototype._sprops = ['authenticated', 'authInfo', 'config', 'device', 'identity', 'token', 'userid'];
+    Session.prototype._sprops = ['authenticated', 'authInfo', 'config', 'device', 'identity', 'displayName', 'token', 'userid'];
 
     function Session(client) {
       this.client = client;
@@ -3448,6 +3459,12 @@
       var cb, i, params, path, ref;
       path = arguments[0], params = 3 <= arguments.length ? slice.call(arguments, 1, i = arguments.length - 1) : (i = 1, []), cb = arguments[i++];
       return (ref = this.client)._api.apply(ref, ['/auth/1' + path].concat(slice.call(params), [cb]));
+    };
+
+    Session.base64urlEncode = function(s) {
+      s = btoa(s);
+      s = s.replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
+      return s;
     };
 
     Session.base64urlDecode = function(s) {

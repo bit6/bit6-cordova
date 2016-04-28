@@ -314,7 +314,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private VideoCapturer getVideoCapturer() {
 		// AG: switched camera facing values to test. On my Android
 		// front camera does not work with this WebRTC version
-		String[] cameraFacing = { "back", "front" };
+		//Bit6 change: Switching the order to try front camera first (works ok now).
+		String[] cameraFacing = { "front", "back" };
 		int[] cameraIndex = { 0, 1 };
 		int[] cameraOrientation = { 0, 90, 180, 270 };
 		for (String facing : cameraFacing) {
