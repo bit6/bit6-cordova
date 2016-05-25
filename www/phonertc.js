@@ -213,3 +213,8 @@ function isApnsProduction(onSuccess) {
 }
 
 exports.isApnsProduction = isApnsProduction;
+
+function switchCamera() {
+  exec(null, null, 'PhoneRTCPlugin', 'switchCamera', []);
+}
+exports.switchCamera = switchCamera;

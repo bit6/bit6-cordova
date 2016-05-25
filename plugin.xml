@@ -2,7 +2,7 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.bit6.sdk"
-    version="0.9.7">
+    version="0.9.8">
 
     <name>Bit6</name>
     <description>Add voice and video calling, text and media messaging to your app</description>
@@ -29,6 +29,9 @@
     </js-module>
 
     <js-module src="www/my-surface.js" name="MySurface">
+    </js-module>
+
+    <js-module src="www/push-wrappers.js" name="PushWrappers">
     </js-module>
 
     <js-module src="www/index-bit6.js" name="Bit6">

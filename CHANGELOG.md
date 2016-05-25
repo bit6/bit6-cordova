@@ -1,3 +1,20 @@
+## 0.9.8 [2016-05-25]
+
+### Release Notes
+
+This release adds support for custom push handling, switchCamera api and a mechanism to keep the user logged in.
+
+### Features
+
+- Added support for custom push handling/implementation.
+- Added switchCamera method to Bit6 api: supported only on Android < 5.0
+- Added a mechanism to keep the user logged in after app restart.
+
+### Bugfixes
+
+- Fixed the issue with opening the app by tapping on a notification when the app is closed.
+
+
 ## 0.9.7 [2016-04-28]
 
 ### Release Notes

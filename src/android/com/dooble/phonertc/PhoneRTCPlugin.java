@@ -22,7 +22,7 @@ import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnectionFactory;
-import org.webrtc.VideoCapturer;
+import org.webrtc.VideoCapturerAndroid;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRendererGui;
 import org.webrtc.VideoSource;
@@ -33,7 +33,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private AudioSource _audioSource;
 	private AudioTrack _audioTrack;
 
-	private VideoCapturer _videoCapturer;
+	private VideoCapturerAndroid _videoCapturer;
 	private VideoSource _videoSource;
 
 	private PeerConnectionFactory _peerConnectionFactory;
@@ -221,7 +221,9 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					_videoView.setVisibility(View.VISIBLE);
 				}
 			});
-		}
+        } else if (action.equals("switchCamera")) {
+            switchCamera();
+        }
 
 		callbackContext.error("Invalid action: " + action);
 		return false;
@@ -311,11 +313,12 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 
 	// Cycle through likely device names for the camera and return the first
 	// capturer that works, or crash if none do.
-	private VideoCapturer getVideoCapturer() {
+	private VideoCapturerAndroid getVideoCapturer() {
 		// AG: switched camera facing values to test. On my Android
 		// front camera does not work with this WebRTC version
 		//Bit6 change: Switching the order to try front camera first (works ok now).
 		String[] cameraFacing = { "front", "back" };
+
 		int[] cameraIndex = { 0, 1 };
 		int[] cameraOrientation = { 0, 90, 180, 270 };
 		for (String facing : cameraFacing) {
@@ -323,7 +326,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 				for (int orientation : cameraOrientation) {
 					String name = "Camera " + index + ", Facing " + facing +
 						", Orientation " + orientation;
-					VideoCapturer capturer = VideoCapturer.create(name);
+					VideoCapturerAndroid capturer = VideoCapturerAndroid.create(name, null);
 					if (capturer != null) {
 						Log.e("PRTC", "Using camera: " + name);
 						return capturer;
@@ -555,4 +558,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	public boolean shouldDispose() {
 		return _shouldDispose;
 	}
+
+    public void switchCamera() {
+        _videoCapturer.switchCamera(null);
+    }
 }
