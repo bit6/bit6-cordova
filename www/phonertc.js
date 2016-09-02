@@ -25,6 +25,13 @@ function Session(config) {
     };
   }
 
+  //Small hack to make the original config parser on iOS to work
+  if (config.streams.video) {
+    var strms = config.streams;
+    strms.video = true;//Overriding  {video:{facingMode: user}} format
+    config.streams = strms;
+  }
+
   if (typeof config.isInitiator === 'undefined' ||
       typeof config.turn === 'undefined' ||
       typeof config.streams === 'undefined') {
@@ -218,3 +225,15 @@ function switchCamera() {
   exec(null, null, 'PhoneRTCPlugin', 'switchCamera', []);
 }
 exports.switchCamera = switchCamera;
+
+function selectCamera(videoConf) {
+  var isFrontCam = (videoConf != null);
+  if (videoConf && videoConf.facingMode == "environment") {
+    isFrontCam = false;
+  }
+
+  exec(null, null, 'PhoneRTCPlugin', 'selectCamera', [isFrontCam]);
+}
+
+exports.selectCamera = selectCamera;
+

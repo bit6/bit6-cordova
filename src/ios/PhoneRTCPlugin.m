@@ -28,7 +28,6 @@
             Session *session = [[Session alloc] init: self :self.peerConnectionFactory :config
                                                 :command.callbackId
                                                 :sessionKey];
-
             [self.sessions setObject: session forKey:sessionKey];
             NSLog(@"session count = %lu", (unsigned long)self.sessions.count);
 
@@ -197,6 +196,12 @@
     });
 }
 
+-(void) selectCamera: (CDVInvokedUrlCommand*)command
+{
+      self.isFrontCamera = [[command argumentAtIndex:0] boolValue];
+}
+
+
 -(RTCEAGLVideoView *)createVideoView: (VideoLayoutParams*) params
 {
     RTCEAGLVideoView *view;
@@ -232,7 +237,8 @@
     NSString *cameraID;
     for (AVCaptureDevice *captureDevice in [AVCaptureDevice devicesWithMediaType: AVMediaTypeVideo]) {
         // TODO: Make this camera option configurable (TODO from original code)
-        if (captureDevice.position == AVCaptureDevicePositionFront) {//AVCaptureDevicePosition.Front
+        if (captureDevice.position == (self.isFrontCamera ? AVCaptureDevicePositionFront : AVCaptureDevicePositionBack)) {
+
             cameraID = [[NSString alloc] initWithString: captureDevice.localizedName];
         }
     }

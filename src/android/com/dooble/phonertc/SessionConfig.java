@@ -10,11 +10,12 @@ public class SessionConfig {
 	private String _turnServerPassword;
 	private boolean _audioStreamEnabled;
 	private boolean _videoStreamEnabled;
-	
+	private boolean _isFrontCamera;
+
 	public String getTurnServerHost() {
 		return _turnServerHost;
 	}
-	
+
 	public void setTurnServerHost(String _turnServerHost) {
 		this._turnServerHost = _turnServerHost;
 	}
@@ -42,7 +43,7 @@ public class SessionConfig {
 	public void setInitiator(boolean _isInitiator) {
 		this._isInitiator = _isInitiator;
 	}
-	
+
 	public boolean isAudioStreamEnabled() {
 		return _audioStreamEnabled;
 	}
@@ -59,10 +60,19 @@ public class SessionConfig {
 		this._videoStreamEnabled = _videoStreamEnabled;
 	}
 
+	public boolean isFrontCamera() {
+		return _isFrontCamera;
+	}
+
+	public void setFrontCamera(boolean isFrontCamera) {
+		this._isFrontCamera = isFrontCamera;
+	}
+
+
 	public static SessionConfig fromJSON(JSONObject json) throws JSONException {
 		SessionConfig config = new SessionConfig();
 		config.setInitiator(json.getBoolean("isInitiator"));
-		
+
 		JSONObject turn = json.getJSONObject("turn");
 		config.setTurnServerHost(turn.getString("host"));
 		config.setTurnServerUsername(turn.getString("username"));
@@ -71,7 +81,10 @@ public class SessionConfig {
 		JSONObject streams = json.getJSONObject("streams");
 		config.setAudioStreamEnabled(streams.getBoolean("audio"));
 		config.setVideoStreamEnabled(streams.getBoolean("video"));
-		
+		if(config.isVideoStreamEnabled()) {
+		    config.setFrontCamera(streams.getJSONObject("video").getString("facingMode") == "user");
+	    }
+
 		return config;
 	}
 }

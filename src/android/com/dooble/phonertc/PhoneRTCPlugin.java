@@ -46,6 +46,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private WebView.LayoutParams _videoParams;
 	private boolean _shouldDispose = true;
 	private boolean _initializedAndroidGlobals = false;
+	private boolean _isFrontCamera;
 
     private WebView _webView;
 
@@ -74,6 +75,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 						_initializedAndroidGlobals = true;
 					}
 
+					_isFrontCamera = config.isFrontCamera();
+
 					if (_peerConnectionFactory == null) {
 						_peerConnectionFactory = new PeerConnectionFactory();
 					}
@@ -85,6 +88,7 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 					if (config.isVideoStreamEnabled() && _localVideo == null) {
 						initializeLocalVideoTrack();
 					}
+
 
 					_sessions.put(sessionKey, new Session(PhoneRTCPlugin.this,
 							_callbackContext, config, sessionKey));
@@ -316,12 +320,14 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 	private VideoCapturerAndroid getVideoCapturer() {
 		// AG: switched camera facing values to test. On my Android
 		// front camera does not work with this WebRTC version
-		//Bit6 change: Switching the order to try front camera first (works ok now).
-		String[] cameraFacing = { "front", "back" };
+		//Bit6 change: Supporting front and back cameras (works ok now).
+		String[] cameraFacing1 = { "front", "back" };
+		String[] cameraFacing2 = { "back", "front" };
+
 
 		int[] cameraIndex = { 0, 1 };
 		int[] cameraOrientation = { 0, 90, 180, 270 };
-		for (String facing : cameraFacing) {
+		for (String facing : (_isFrontCamera ? cameraFacing1 : cameraFacing2)) {
 			for (int index : cameraIndex) {
 				for (int orientation : cameraOrientation) {
 					String name = "Camera " + index + ", Facing " + facing +

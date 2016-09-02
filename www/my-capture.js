@@ -17,6 +17,7 @@
       var e;
       console.log('RtcCapture2 request: ' + JSON.stringify(opts));
       if (opts != null ? opts.video : void 0) {
+        this.phonertc.selectCamera(opts.video);
         console.log('RtcCapture2 - create local video');
         this.localEl = e = document.createElement('div');
         this.emit('video', e, 1);

@@ -32,6 +32,8 @@
 @property (nonatomic, strong) NSMutableArray *remoteVideoViews;
 @property (nonatomic, strong) RTCVideoTrack *localVideoTrack;
 @property (nonatomic, strong) RTCAudioTrack *localAudioTrack;
+@property (nonatomic, assign) BOOL isFrontCamera;
+
 
 - (instancetype)initWithWebView:(UIWebView*)webView;
 - (void) createSessionObject:(CDVInvokedUrlCommand*)command;
@@ -43,6 +45,7 @@
 - (void) setVideoView:(CDVInvokedUrlCommand*)command;
 - (void) hideVideoView: (CDVInvokedUrlCommand*)command;
 - (void) showVideoView: (CDVInvokedUrlCommand*)command;
+- (void) selectCamera: (CDVInvokedUrlCommand*)command;
 - (RTCEAGLVideoView *)createVideoView: (VideoLayoutParams*) params;
 -(void) initLocalAudioTrack;
 -(void) initLocalVideoTrack;

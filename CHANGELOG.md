@@ -1,3 +1,19 @@
+## 0.9.9 [2016-09-02]
+
+### Release Notes
+
+This release adds support for camera selection for video calls and audio recording during the calls.
+
+### Features
+
+- Added support for camera selection on initiating a video call
+- Added support for call recording
+
+### Bugfixes
+
+- Fixed the issue with push key cleanup. Now after logout the user will not get push notifications.
+
+
 ## 0.9.8 [2016-05-25]
 
 ### Release Notes

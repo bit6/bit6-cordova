@@ -1,4 +1,4 @@
-// bit6 - v0.9.7
+// bit6 - v0.9.9
 
 (function() {
   var slice = [].slice;
@@ -186,11 +186,12 @@
   bit6.Dialog = (function(superClass) {
     extend(Dialog, superClass);
 
-    function Dialog(client, outgoing, other, options) {
-      var base, i, j, len, len1, myaddr, ref, ref1, t;
+    function Dialog(client, outgoing, other, invite, options) {
+      var base, base1, base2, i, j, len, len1, myaddr, myname, ref, ref1, ref2, t;
       this.client = client;
       this.outgoing = outgoing;
       this.other = other;
+      this.invite = invite;
       this.options = options;
       Dialog.__super__.constructor.apply(this, arguments);
       this.me = this.client.session.identity;
@@ -204,33 +205,54 @@
           base[t] = false;
         }
       }
-      if (this.other.indexOf('pstn:') !== 0 && this.other.indexOf('grp:') !== 0) {
-        this.options.data = true;
+      if ((base1 = this.options).offnet == null) {
+        base1.offnet = false;
       }
+      if (this.options.offnet || this.other.indexOf('grp:') === 0) {
+        this.options.mode = 'mix';
+      }
+      if ((base2 = this.options).mode == null) {
+        base2.mode = 'p2p';
+      }
+      this.options.data = this.options.mode === 'p2p';
       this.remoteOptions = {};
-      ref1 = ['audio', 'video'];
+      ref1 = ['audio', 'video', 'offnet'];
       for (j = 0, len1 = ref1.length; j < len1; j++) {
         t = ref1[j];
         this.remoteOptions[t] = this.options[t] && !this.outgoing;
       }
       this.params = {
-        callID: null
+        callID: null,
+        userVariables: {
+          mode: this.options.mode,
+          offnet: this.options.offnet
+        }
       };
-      myaddr = 'uid:' + this.client.session.userid + '@' + this.client.apikey;
-      this.renegotiating = false;
+      myaddr = this.me + '@' + this.client.apikey;
+      myname = (ref2 = this.client.session.displayName) != null ? ref2 : this.me;
       if (this.outgoing) {
         this.state = 'req';
         this.params.destination_number = this.other + '@' + this.client.apikey;
-        this.params.caller_id_name = this.me;
+        this.params.caller_id_name = myname;
         this.params.caller_id_number = myaddr;
         this.params.callID = bit6.JsonRpc.generateGUID();
       } else {
         this.state = 'pre-answer';
-        this.params.callee_id_name = this.me;
+        this.params.callee_id_name = myname;
         this.params.callee_id_number = myaddr;
       }
+      this._recording = false;
       this.transfers = [];
+      this.renegotiating = false;
     }
+
+    Dialog.prototype.supports = function(c) {
+      switch (c) {
+        case 'recording':
+          return this.options.mode === 'mix';
+      }
+      return false;
+    };
 
     Dialog.prototype.connect = function(opts) {
       var i, len, newv, oldv, ref, t;
@@ -264,6 +286,22 @@
 
     Dialog.prototype.hasVideoStreams = function() {
       return this.options.video || this.remoteOptions.video;
+    };
+
+    Dialog.prototype.recording = function(flag) {
+      var args, m;
+      if ((flag == null) || this._recording === flag) {
+        return this._recording;
+      }
+      this._recording = flag;
+      args = {
+        callID: this.params.callID,
+        me: this.me,
+        other: this.other,
+        outgoing: this.outgoing
+      };
+      m = flag ? 'startRecording' : 'stopRecording';
+      return this.client._sendNotification('control', m, args);
     };
 
     Dialog.prototype._onMediaReady = function() {
@@ -424,9 +462,9 @@
     };
 
     Dialog.prototype._sendAcceptRejectIncomingCall = function(accept) {
-      var type;
+      var ref, type;
       type = accept ? 'accept' : 'reject';
-      return this.client._sendNotification(this.rdest, type);
+      return this.client._sendNotification((ref = this.invite) != null ? ref.rdest : void 0, type);
     };
 
     Dialog.prototype._sendHangupCall = function() {
@@ -547,7 +585,7 @@
 
 (function() {
   bit6.JsonRpc = (function() {
-    JsonRpc.prototype.reconnectDelay = 2000;
+    JsonRpc.prototype.reconnectDelay = 4000;
 
     function JsonRpc(options) {
       var base;
@@ -713,7 +751,7 @@
 
     extend(Client, superClass);
 
-    Client.version = '0.9.7';
+    Client.version = '0.9.9';
 
     endpoints = {
       prod: 'https://api.bit6.com',
@@ -762,12 +800,10 @@
       })(this));
     };
 
-    Client.prototype._onLogout = function(cb) {
+    Client.prototype._onBeforeLogout = function(cb) {
       this._disconnectRt();
       this._clear();
-      if (cb != null) {
-        return cb(null);
-      }
+      return cb(null);
     };
 
     Client.prototype._loadMe = function(cb) {
@@ -1290,14 +1326,15 @@
     };
 
     Client.prototype.startCall = function(to, opts) {
-      return this._createDialog(true, to, opts);
+      return this._createDialog(true, to, null, opts);
     };
 
     Client.prototype.startPhoneCall = function(phone) {
       var to;
-      to = 'pstn:' + phone;
+      to = 'tel:' + phone;
       return this.startCall(to, {
-        audio: true
+        audio: true,
+        offnet: true
       });
     };
 
@@ -1326,11 +1363,11 @@
     };
 
     Client.prototype.findDialogByRdest = function(rdest) {
-      var c, i, len, ref;
+      var c, i, len, ref, ref1;
       ref = this.dialogs;
       for (i = 0, len = ref.length; i < len; i++) {
         c = ref[i];
-        if (c.rdest === rdest) {
+        if (((ref1 = c.invite) != null ? ref1.rdest : void 0) === rdest) {
           return c;
         }
       }
@@ -1355,13 +1392,13 @@
       }
     };
 
-    Client.prototype._createDialog = function(outgoing, other, opts) {
+    Client.prototype._createDialog = function(outgoing, other, invite, opts) {
       var c;
       c = this.findDialogByOther(other);
       if (c) {
         return c;
       }
-      c = new bit6.Dialog(this, outgoing, other, opts);
+      c = new bit6.Dialog(this, outgoing, other, invite, opts);
       this.dialogs.push(c);
       c.on('error', (function(_this) {
         return function(msg) {
@@ -1419,6 +1456,7 @@
         case 'usr':
         case 'pstn':
         case 'mailto':
+        case 'tel':
           t = r[1];
           break;
         case 'grp':
@@ -1456,7 +1494,7 @@
     };
 
     Client.prototype._handleRtMessage = function(m) {
-      var g, gid, i, len, old, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, results;
+      var g, gid, i, j, len, len1, needToReloadMemberships, old, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, results;
       switch (m.type) {
         case 'push':
           return this._handlePushRtMessage(m.data);
@@ -1465,13 +1503,26 @@
             this._processMessages(m.data.messages);
           }
           if (((ref1 = m.data) != null ? (ref2 = ref1.groups) != null ? ref2.length : void 0 : void 0) > 0) {
+            needToReloadMemberships = false;
             ref3 = m.data.groups;
-            results = [];
             for (i = 0, len = ref3.length; i < len; i++) {
               g = ref3[i];
-              results.push(this._loadGroupWithMembers(g.id, true));
+              if (!this.groups[g.id]) {
+                needToReloadMemberships = true;
+                break;
+              }
             }
-            return results;
+            if (needToReloadMemberships) {
+              return this._loadMe(function(err) {});
+            } else {
+              ref4 = m.data.groups;
+              results = [];
+              for (j = 0, len1 = ref4.length; j < len1; j++) {
+                g = ref4[j];
+                results.push(this._loadGroupWithMembers(g.id, true));
+              }
+              return results;
+            }
           }
           break;
         case 'presence':
@@ -1479,13 +1530,13 @@
             old = this.presence[m.from];
             this.presence[m.from] = m.data;
             if (m.data.status == null) {
-              this.presence[m.from].status = (ref4 = old != null ? old.status : void 0) != null ? ref4 : 'offline';
+              this.presence[m.from].status = (ref5 = old != null ? old.status : void 0) != null ? ref5 : 'offline';
             }
-            p = (ref5 = (ref6 = m.data) != null ? ref6.profile : void 0) != null ? ref5 : null;
+            p = (ref6 = (ref7 = m.data) != null ? ref7.profile : void 0) != null ? ref6 : null;
             if (p && (this.groups != null)) {
-              ref7 = this.groups;
-              for (gid in ref7) {
-                g = ref7[gid];
+              ref8 = this.groups;
+              for (gid in ref8) {
+                g = ref8[gid];
                 if (g._updateMemberProfile(m.from, p)) {
                   this.emit('group', g, 0);
                 }
@@ -1497,7 +1548,7 @@
         case 'typing':
           return this.emit('notification', m);
         default:
-          if ((m != null ? (ref8 = m.type) != null ? ref8.length : void 0 : void 0) > 1 && m.type.charAt(0) === '_') {
+          if ((m != null ? (ref9 = m.type) != null ? ref9.length : void 0 : void 0) > 1 && m.type.charAt(0) === '_') {
             m.type = m.type.substring(1);
             return this.emit('notification', m);
           }
@@ -1515,8 +1566,7 @@
             video: (ch & bit6.Message.VIDEO) === bit6.Message.VIDEO,
             data: (ch & bit6.Message.DATA) === bit6.Message.DATA
           };
-          c = this._createDialog(false, d.sender, opts);
-          c.rdest = d.rdest;
+          c = this._createDialog(false, d.sender, d, opts);
           return this.emit('incomingCall', c);
         case bit6.Message.MISSED_CALL:
           console.log('missed call from', d.sender, 'rdest=', d.rdest);
@@ -1567,11 +1617,9 @@
           }
           break;
         case 'verto.invite':
-          t = params.caller_id_name;
-          if (t) {
-            t = t.split('@');
-          }
-          c = this.findDialogByOther(params.caller_id_name);
+          t = params.caller_id_number;
+          x = t != null ? t.split('@') : void 0;
+          c = this.findDialogByOther(x != null ? x[0] : void 0);
           if (c) {
             c.handleRpcCall(method, params);
           }
@@ -1599,6 +1647,7 @@
         wsUrl: s.url,
         login: s.username,
         password: s.credential,
+        sessid: this.session.device,
         onRpcCall: (function(_this) {
           return function(m, params, done) {
             return _this._handleRpcCall(m, params, done);
@@ -3160,11 +3209,9 @@
           };
           return _this._maybeSendOfferAnswer();
         };
-      })(this), (function(_this) {
-        return function(err) {
-          return console.log('Error setting PeerConnection localDescription', err, offerAnswer);
-        };
-      })(this));
+      })(this), function(err) {
+        return console.log('Error setting PeerConnection localDescription', err, offerAnswer);
+      });
     };
 
     Rtc.prototype.gotRemoteOfferAnswer = function(msg, capture) {
@@ -3174,18 +3221,26 @@
       switch (msg.type) {
         case 'offer':
           this._preparePeerConnection(capture);
-          this.pc.setRemoteDescription(offerAnswer);
+          this.pc.setRemoteDescription(offerAnswer, function() {
+            return true;
+          }, function(err) {
+            return console.log('Error setting PeerConnection remoteDescription for offer', err, offerAnswer);
+          });
           return this.pc.createAnswer((function(_this) {
             return function(answer) {
               return _this._setLocalAndSendOfferAnswer(answer);
             };
           })(this), (function(_this) {
             return function(err) {
-              return console.log('CreateAnswer error', err);
+              return true;
             };
           })(this));
         case 'answer':
-          return (ref = this.pc) != null ? ref.setRemoteDescription(offerAnswer) : void 0;
+          return (ref = this.pc) != null ? ref.setRemoteDescription(offerAnswer, function() {
+            return true;
+          }, function(err) {
+            return console.log('Error setting PeerConnection remoteDescription for answer', err, offerAnswer);
+          }) : void 0;
       }
     };
 
@@ -3308,9 +3363,16 @@
     };
 
     Session.prototype.logout = function(cb) {
-      this._clear();
-      this.client._onLogout(cb);
-      return this.emit('deauth');
+      return this.client._onBeforeLogout((function(_this) {
+        return function(err) {
+          if (err) {
+            return typeof cb === "function" ? cb(err) : void 0;
+          }
+          _this._clear();
+          _this.emit('deauth');
+          return typeof cb === "function" ? cb(null) : void 0;
+        };
+      })(this));
     };
 
     Session.prototype.getAuthInfo = function(cb) {

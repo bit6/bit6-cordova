@@ -2,7 +2,7 @@
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.bit6.sdk"
-    version="0.9.8">
+    version="0.9.9">
 
     <name>Bit6</name>
     <description>Add voice and video calling, text and media messaging to your app</description>

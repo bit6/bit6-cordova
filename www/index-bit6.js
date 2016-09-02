@@ -90,7 +90,7 @@ function initPushService(b6, customPushSupport) {
     }
 
     // Helper function for submitting the push key to the server
-    var sendPushkeyToServer = function(pushkey) {
+    var sendPushkeyToServer = function(pushkey, cb) {
         var data = {
             id: b6.session.device,
             pushkey: pushkey,
@@ -102,6 +102,14 @@ function initPushService(b6, customPushSupport) {
         b6.api('/me/devices', 'POST', data, function(err, res) {
             console.log('Dev update err=' + err);
             console.log('Dev update res=' + res);
+
+            if (err) {
+                alert('Dev update err=' + err);
+            }
+
+            if (cb) {
+                cb();
+            }
         });
     };
 
@@ -153,4 +161,12 @@ function initPushService(b6, customPushSupport) {
             sendPushkeyToServer(pushToken);
         }
     }
+
+    //Override _onBeforeLogout to remove the push key on the server
+    var sdkBeforeLogout = b6._onBeforeLogout;
+    b6._onBeforeLogout = function () {
+        sendPushkeyToServer('', function() {
+         sdkBeforeLogout.call(b6, function() {});
+     });
+    };
 }

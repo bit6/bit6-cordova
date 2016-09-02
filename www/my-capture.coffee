@@ -9,6 +9,7 @@ class bit6.MyCapture extends bit6.RtcCapture
         console.log 'RtcCapture2 request: ' + JSON.stringify(opts)
         # Emit local video element placeholder
         if opts?.video
+            @phonertc.selectCamera opts.video
             console.log 'RtcCapture2 - create local video'
             @localEl = e = document.createElement 'div'
             @emit 'video', e, 1
