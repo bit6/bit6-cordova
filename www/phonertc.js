@@ -25,11 +25,11 @@ function Session(config) {
     };
   }
 
-  //Small hack to make the original config parser on iOS to work
+  //Small hack to make the original config parser work
   if (config.streams.video) {
-    var strms = config.streams;
-    strms.video = true;//Overriding  {video:{facingMode: user}} format
-    config.streams = strms;
+    var streams = config.streams;
+    streams.video = true;//Overriding  {video:{facingMode: user}} format
+    config.streams = streams;
   }
 
   if (typeof config.isInitiator === 'undefined' ||

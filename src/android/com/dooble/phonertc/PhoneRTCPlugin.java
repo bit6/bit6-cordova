@@ -75,8 +75,6 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 						_initializedAndroidGlobals = true;
 					}
 
-					_isFrontCamera = config.isFrontCamera();
-
 					if (_peerConnectionFactory == null) {
 						_peerConnectionFactory = new PeerConnectionFactory();
 					}
@@ -227,6 +225,8 @@ public class PhoneRTCPlugin extends CordovaPlugin {
 			});
         } else if (action.equals("switchCamera")) {
             switchCamera();
+        } else if (action.equals("selectCamera")) {
+           _isFrontCamera = args.getBoolean(0);
         }
 
 		callbackContext.error("Invalid action: " + action);
