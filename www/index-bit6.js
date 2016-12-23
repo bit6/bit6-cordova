@@ -1,45 +1,18 @@
 cordova.require("com.bit6.sdk.Bit6SDK");
-cordova.require("com.bit6.sdk.MyRtc");
-cordova.require("com.bit6.sdk.MyCapture");
-cordova.require("com.bit6.sdk.MySurface");
 
 var pushWrappers = cordova.require("com.bit6.sdk.PushWrappers");
-var phonertc = cordova.require("com.bit6.sdk.PhoneRTC");
+var utils = cordova.require("com.bit6.sdk.Utils");
 
 exports.init = function(opts) {
 
     var b6 = new bit6.Client(opts);
     // Init DeviceId and Push support
     initPushService(b6, opts.pushSupport);
-    // Init native WebRTC component?
-    // Check for PeerConnection instead?
-    var hasWebRTC = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || window.getUserMedia;
-    // WebView does not support WebRTC, init a native substitute
-    if (!hasWebRTC) {
-        // Internal helper for showing/hiding OpenGL surface for native video views
-        var surface = new bit6.MySurface(phonertc);
 
-        b6._createRtc = function() {
-            return new bit6.MyRtc(phonertc);
-        };
-        b6._createRtcCapture = function() {
-            return new bit6.MyCapture(phonertc);
-        };
-        b6._emitVideoEvent = function(v, d, op) {
-            // Default - emit 'video' event to manage DOM
-            // attachment
-            b6.emit('video', v, d, op);
-            // Pass it into Surface - it will get the container element
-            //console.log('ToSurface: ' + v + ' parent ' + v.parentNode);
-            surface.onVideo(v, d, op);
-        };
-
-        if (device.platform.toLowerCase() === 'android') { //Supporting only android for now
-            b6.switchCamera = function() {
-                phonertc.switchCamera();
-            }
-        }
-    }
+    // Just for iOS devices, making WebRTC methods available using iosrtc plugin 
+     if (window.device.platform === 'iOS' && cordova.plugins.iosrtc) {
+        cordova.plugins.iosrtc.registerGlobals();
+     }
 
     return b6;
 };
@@ -116,9 +89,9 @@ function initPushService(b6, customPushSupport) {
     var sendApnsPushkeyToServer = function(key) {
         //For iOS adding prefix p_/d_ to the push token for Bit6 server to use correct APNS
         // TODO: Do we want to call isApnsProduction() just once during init?
-        phonertc.isApnsProduction(function(isProd) {
+        utils.isApnsProduction(function(isProd) {
             var prefix = isProd ? 'p_' : 'd_';
-            sendPushkeyToServer(prefix + key);
+           sendPushkeyToServer(prefix + key);
         });
     };
 

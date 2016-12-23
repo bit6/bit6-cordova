@@ -28,6 +28,32 @@ function onDeviceReady() {
 }
 ```
 
+### Video/Voice calls on iOS
+
+To enable call support on iOS add [iosrtc](https://github.com/eface2face/cordova-plugin-iosrtc) plugin
+
+```
+cordova plugin add cordova-plugin-iosrtc
+```
+
+Note: Check the plugin requirements on [this page](https://github.com/eface2face/cordova-plugin-iosrtc) and [building page](https://github.com/eface2face/cordova-plugin-iosrtc/blob/master/docs/Building.md)
+
+Note: no need to add iosrtc if your app does not use audio/video calls.
+
+
+### Video/Voice calls on Android < 5
+
+To enable call support on Android < 5 add [Crosswalk Webview](https://github.com/crosswalk-project/cordova-plugin-crosswalk-webview) plugin
+
+```
+cordova plugin add cordova-plugin-crosswalk-webview
+```
+
+### Real time notifications on Android<4.4
+
+For real time notifications (websocket) on Android<4.4 Crosswalk Webview is required.
+
+
 ### Quickstart
 Create a user with a password authentication:
 ```js

@@ -1,3 +1,17 @@
+## 0.10.0 [2016-12-23]
+
+### Release Notes
+Phonertc module is removed. For Webrtc support on iOS and on Adnroid<5 iosrtc and Crosswalk webview plugins are used.
+
+
+### Breaking Changes
+- For voice/video calls (iOS, Android<5) the plugins mentioned above are required.
+- For real time notifications support on Android<4.4 Crosswalk Webview is required.
+
+### Bugfixes
+- Fixed the issue with missing remote video during iOS calls
+- iOS 10 support
+
 ## 0.9.9 [2016-09-02]
 
 ### Release Notes
