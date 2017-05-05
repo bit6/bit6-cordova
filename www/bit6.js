@@ -1,9 +1,9 @@
-// bit6 - v0.9.9
+// bit6 - v0.11.0
 
 (function() {
   var slice = [].slice;
 
-  window.bit6 || (window.bit6 = {});
+  window.bit6 = {};
 
   bit6.EventEmitter = (function() {
     function EventEmitter() {
@@ -751,7 +751,7 @@
 
     extend(Client, superClass);
 
-    Client.version = '0.9.9';
+    Client.version = '0.11.0';
 
     endpoints = {
       prod: 'https://api.bit6.com',
@@ -2223,6 +2223,12 @@
               return _this._attachmentMediaLoaded(media, info, cb);
             };
           })(this);
+          media.onerror = (function(_this) {
+            return function() {
+              console.log('Error on video loading. Still can send the file');
+              return _this._attachmentMediaLoaded(media, info, cb);
+            };
+          })(this);
         }
         return media.src = srcUrl;
       } else if (isAudio) {
@@ -2259,7 +2265,7 @@
     };
 
     Outgoing.createThumbnail = function(media, cb) {
-      var canvas, ctx, dataUrl, maxHeight, maxWidth, ref, ref1, th, tw;
+      var canvas, ctx, dataUrl, maxHeight, maxWidth, ref, ref1, ref2, th, tw;
       maxWidth = 320;
       maxHeight = 320;
       tw = (ref = media != null ? media.videoWidth : void 0) != null ? ref : media.width;
@@ -2281,6 +2287,9 @@
       ctx = canvas.getContext('2d');
       ctx.drawImage(media, 0, 0, tw, th);
       dataUrl = canvas.toDataURL('image/jpeg');
+      if (((ref2 = dataUrl.split(":")[1]) != null ? ref2.length : void 0) < 2) {
+        dataUrl = null;
+      }
       return cb(null, dataUrl);
     };
 

@@ -1,3 +1,11 @@
+## 0.11.0 [2017-05-05]
+
+### Release Notes
+Changed plugin name, added package.json, updated README
+
+### Bugfixes
+- Fixed the issue with sending video attachments for which the thumbnail generation fails.
+
 ## 0.10.0 [2016-12-23]
 
 ### Release Notes

@@ -1,0 +1,38 @@
+{
+  "name": "cordova-plugin-bit6",
+  "version": "0.11.0",
+  "description": "Add voice and video calling, text and media messaging to your app",
+  "cordova": {
+    "id": "cordova-plugin-bit6",
+    "platforms": [
+      "ios",
+      "android",
+      "browser"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bit6/bit6-cordova.git"
+  },
+  "keywords": [
+    "webrtc",
+    "messaging",
+    "communication",
+    "text",
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android"
+  ],
+  "engines": [
+    {
+      "name": "cordova-ios",
+      "version": ">=3.0.0"
+    }
+  ],
+  "author": "bit6",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/bit6/bit6-cordova/issues"
+  },
+  "homepage": "https://github.com/bit6/bit6-cordova#readme"
+}

@@ -53,6 +53,11 @@ cordova plugin add cordova-plugin-crosswalk-webview
 
 For real time notifications (websocket) on Android<4.4 Crosswalk Webview is required.
 
+### Permissions on Android >= 6
+
+For call support on Android >= 6 grant `Camera` and  `Microphone` permissions from `Settings->Apps->YourApp->Permissions`.
+
+`Storage` permission is required to support message attachments.
 
 ### Quickstart
 Create a user with a password authentication:

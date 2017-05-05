@@ -1,7 +1,7 @@
-cordova.require("com.bit6.sdk.Bit6SDK");
+cordova.require("cordova-plugin-bit6.Bit6SDK");
 
-var pushWrappers = cordova.require("com.bit6.sdk.PushWrappers");
-var utils = cordova.require("com.bit6.sdk.Utils");
+var pushWrappers = cordova.require("cordova-plugin-bit6.PushWrappers");
+var utils = cordova.require("cordova-plugin-bit6.Utils");
 
 exports.init = function(opts) {
 
